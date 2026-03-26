@@ -11,8 +11,8 @@ uniform mat4 uInvProjView;      // The inverse View-Projection matrix
 
 const float PI = 3.14159265359;
 const float dL = 0.01;
-const float rs = 0.1;
-const int N_STEPS = 500;
+const float rs = 0.25;
+const int N_STEPS = 1000;
 
 struct ray {
     vec4 x;
@@ -65,7 +65,7 @@ ray sph_to_cart(ray R) {
 
 vec4 find_acceleration(ray R){
     float r = R.x[1];
-    float theta = clamp(R.x[2], 1e-6, PI - 1e-6);;
+    float theta = clamp(R.x[2], 1e-10, PI - 1e-10);
 
     float vt    =R.u[0];
     float vr    =R.u[1];
@@ -88,7 +88,7 @@ vec4 find_acceleration(ray R){
     float Tth_phph = -sin_theta*cos_theta;
     //azimuthal component 
     float Tph_rph = 1.0/r;
-    float Tph_thph = 1.0/(tan_theta + 1e-10);
+    float Tph_thph = 1.0/(tan_theta);
     //Time-component
     float Tt_tr = rs/(2*r*(r-rs)); 
     // T(t) component(accelerationequations)
@@ -124,31 +124,23 @@ vec2 DirectionToUV(vec3 dir) {
 }
 
 // Check if a ray hits a particle
-bool rayParticleHit(ray R, particle p, out float dist) {
+float rayParticleHit(ray R, particle p) {
     // Extract particle position from stateX (spherical coords -> cartesian)
-    // float r = p.x.y;
-    // float theta = p.x.z;
-    // float phi = p.x.w;
+    float r = p.x.y;
+    float theta = p.x.z;
+    float phi = p.x.w;
     
-    // vec3 particlePos = vec3(
-    //     r * sin(theta) * cos(phi),
-    //     r * sin(theta) * sin(phi),
-    //     r * cos(theta)
-    // );
-    vec3 particlePos = p.x.yzw;
+    vec3 particlePos = vec3(
+        r * sin(theta) * cos(phi),
+        r * sin(theta) * sin(phi),
+        r * cos(theta)
+    );
+    // vec3 particlePos = p.x.yzw;
     
     // Simple sphere intersection
     vec3 toParticle = particlePos - R.x.yzw;
-    float a = dot(R.u.yzw, R.u.yzw);
-    float b = -2.0 * dot(R.u.yzw, toParticle);
-    float c = dot(toParticle, toParticle) - p.r * p.r;
-    
-    float discriminant = b * b - 4.0 * a * c;
-    if (discriminant < 0.0) return false;
-    
-    float t1 = (-b - sqrt(discriminant)) / (2.0 * a);
-    dist = t1 > 0.0 ? t1 : (-b + sqrt(discriminant)) / (2.0 * a);
-    return dist > 0.0;
+    float d= length(toParticle);
+    return d-p.r;
 }
 
 vec3 raymarch(vec3 ro, vec3 rd) {
@@ -170,7 +162,7 @@ vec3 raymarch(vec3 ro, vec3 rd) {
         /(1.0-(rs/Rp.x.y))
         ); //NULL CONSTRAINT
 
-    // R = sph_to_cart(Rp);
+    R = sph_to_cart(Rp);
 
     //converting cartesian to polar for u and x using jacobian
     
@@ -179,13 +171,11 @@ vec3 raymarch(vec3 ro, vec3 rd) {
         if(length(Rp.x[1]) < rs*1.1) { // A simple sphere at (0,0,5) with radius 0.5
             return vec3(0.0, 0.0, 0.0); // Hit the sphere, return red
         }
+        R = sph_to_cart(Rp);
        
         for (int j = 0; j < uParticleCount; j++) {
-            float dist;
-            if (rayParticleHit(Rp, particles[j], dist)) {
-                if (dist < 0.1) {
-                    return particles[j].color; // Return the particle's color if hit
-                }
+            if (rayParticleHit(R, particles[j]) <0.0) {
+                return particles[j].color; // Return the particle's color if hit
             }
         }
 
