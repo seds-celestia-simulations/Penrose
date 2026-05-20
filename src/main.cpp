@@ -104,7 +104,7 @@ int main() {
         // Update particle data if needed
         //test update
         for (Particle& p : particles) {
-            p.stateX.z += deltaTime *0.05; // Increment time
+            p.stateX.z += deltaTime *0.01; // Increment time
         }
         renderer.updateParticles(particles);
 
