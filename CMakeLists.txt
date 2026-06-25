@@ -17,6 +17,7 @@ add_executable(Penrose
     src/render/Texture.cpp
     src/render/Window.cpp
     src/render/Renderer.cpp
+    src/render/ParticleBuffer.cpp
 )
 
 target_include_directories(Penrose PRIVATE vendor)

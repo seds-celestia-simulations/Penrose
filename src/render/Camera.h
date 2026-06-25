@@ -30,13 +30,13 @@ public:
     float RotationSpeed;
 
     // Constructor
-    Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 2.0f)) {
+    Camera(glm::vec3 position = glm::vec3(0.5f, 0.5f, 2.0f)) {
         Position = position;
         WorldUp = glm::vec3(0.0f, 1.0f, 0.0f);
         Yaw = -90.0f;
         Pitch = 0.0f;
         MovementSpeed = 2.5f;
-        RotationSpeed = 10.0f;
+        RotationSpeed = 60.0f;
         updateCameraVectors();
     }
 

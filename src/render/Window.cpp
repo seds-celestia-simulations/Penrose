@@ -1,13 +1,27 @@
 #include "Window.h"
 #include "../Constants.h"
+
+// Track key state to prevent multiple toggles on single press
+static bool pKeyPressed = false;
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
 }
 
-void processInput(GLFWwindow *window, Camera& camera) {
+void processInput(GLFWwindow *window, Camera& camera, FrameCapture& frameCapture) {
     float deltaTime = dt;
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+
+    // Handle 'P' key for frame capture toggle
+    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
+        if (!pKeyPressed) {
+            frameCapture.toggleCapture();
+            pKeyPressed = true;
+        }
+    } else {
+        pKeyPressed = false;
+    }
 
     // Movement (WASD)
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)

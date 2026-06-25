@@ -15,11 +15,13 @@
 #include "render/Camera.h"
 #include "render/Texture.h"
 #include "render/Renderer.h"
+#include "render/Particle.h"
+#include "render/FrameCapture.h"
 
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
-Camera camera(glm::vec3(0.0f, 0.0f, 5.0f));
+Camera camera(glm::vec3(0.5f, 0.0f, 2.0f));
 
 float deltaTime = 0.0f; 
 float lastFrame = 0.0f; 
@@ -54,14 +56,38 @@ int main() {
     // 4. Load the Shader Program & Textures
     Shader shader("../../shaders/quad.vert", "../../shaders/quad.frag");
 
-    unsigned int skyboxTexture = loadTexture("../../shaders/starfield.jpg");
+    unsigned int skyboxTexture = loadTexture("../../shaders/starfield_original.jpg");
     if (skyboxTexture == 0) return -1; // Fail if image didn't load
 
     // 5. Setup the Full-Screen Quad Geometry
     Renderer renderer; // The constructor silently builds the VAO/VBO here!
+
+    // Create some test particles
+    std::vector<Particle> particles; // Generate 1000 particles in the accretion disk
+    Particle p1;
+    p1.stateX = glm::vec4(0.0f, 2.5f, 0.0f, 0.0f);
+    p1.stateU = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
+    p1.color = glm::vec3(1.0f, 0.0f, 0.0f);  // Red
+    p1.mass = 1.0f;
+    p1.radius = 0.05f;
+    particles.push_back(p1);
+
+    Particle p2;
+    p2.stateX = glm::vec4(0.0f, 2.538f, 0.174f, 0.0f);  // time=0, r=2, theta=PI/2, phi=0
+    p2.stateU = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
+    p2.color = glm::vec3(0.0f, 1.0f, 0.0f);  // Green
+    p2.mass = 1.0f;
+    p2.radius = 0.05f;
+    particles.push_back(p2);
+
+    // Upload to renderer
+    renderer.updateParticles(particles);
     
     shader.use();
-    shader.setFloat("skybox", 0);
+    shader.setInt("skybox", 0);
+
+    // Initialize frame capture
+    FrameCapture frameCapture;
 
     // 6. Main Render Loop
     while (!glfwWindowShouldClose(window)) {
@@ -72,14 +98,28 @@ int main() {
 
         // --- PROCESS KEYBOARD INPUT ---
         // uses the global camera and deltaTime(=dt by default)
-        processInput(window, camera);
+        processInput(window, camera, frameCapture);
 
         // --- CLEAR SCREEN ---
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
+        // --- UPDATE ---
+        // Update particle data if needed
+        //test update
+        for (Particle& p : particles) {
+            p.stateX.z += deltaTime *0.01; // Increment time
+        }
+        renderer.updateParticles(particles);
+
         // --- DRAW Fn ---
         renderer.draw(shader, window, camera, skyboxTexture, currentFrame);
+
+        // --- CAPTURE FRAME IF ENABLED ---
+        if (frameCapture.getIsCapturing()) {
+            std::string filePath = frameCapture.getNextFilePath();
+            renderer.captureFrame(filePath, window);
+        }
 
         // --- SWAP BUFFERS ---
         glfwSwapBuffers(window);

@@ -1,4 +1,6 @@
 #include "Renderer.h"
+#include <iostream>
+#include <fstream>
 
 Renderer::Renderer() {
     // 5. Setup the Full-Screen Quad Geometry
@@ -57,6 +59,10 @@ void Renderer::draw(Shader& shader, GLFWwindow* window, Camera& camera, unsigned
     glm::mat4 invProjView = glm::inverse(projection * view);
     glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uInvProjView"), 1, GL_FALSE, &invProjView[0][0]);
 
+    particleBuffer.bind(0);
+    // Pass particle count to shader
+    shader.setInt("uParticleCount", (int)particleBuffer.getParticleCount());
+
     // Bind the skybox texture to unit 0 before drawing
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, skyboxTexture);
@@ -64,4 +70,46 @@ void Renderer::draw(Shader& shader, GLFWwindow* window, Camera& camera, unsigned
     // Draw the quad
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+
+void Renderer::updateParticles(const std::vector<Particle>& particles) {
+    particleBuffer.uploadParticles(particles);
+}
+
+bool Renderer::captureFrame(const std::string& filePath, GLFWwindow* window) {
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    
+    // Allocate buffer for pixel data (RGB format)
+    unsigned char* pixels = new unsigned char[width * height * 3];
+    
+    // Read pixels from framebuffer
+    glReadBuffer(GL_FRONT);
+    glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+    
+    // Open file for writing in binary mode
+    std::ofstream file(filePath, std::ios::binary);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open file for writing: " << filePath << std::endl;
+        delete[] pixels;
+        return false;
+    }
+    
+    // Write PPM header
+    file << "P6\n";
+    file << width << " " << height << "\n";
+    file << "255\n";
+    
+    // Write pixel data (flip vertically because OpenGL reads from bottom-left)
+    for (int y = height - 1; y >= 0; --y) {
+        for (int x = 0; x < width; ++x) {
+            int idx = (y * width + x) * 3;
+            file.write((const char*)(pixels + idx), 3);
+        }
+    }
+    
+    file.close();
+    delete[] pixels;
+    
+    return true;
 }

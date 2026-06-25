@@ -74,6 +74,9 @@ public:
     void setVec3(const std::string &name, const glm::vec3 &value) const { 
         glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]); 
     }
+    void setInt(const std::string &name, int value) const { 
+        glUniform1i(glGetUniformLocation(ID, name.c_str()), value); 
+    }
 
 private:
     void checkCompileErrors(unsigned int shader, std::string type) {
