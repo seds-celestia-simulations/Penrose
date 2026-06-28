@@ -3,16 +3,12 @@
 #include <fstream>
 
 Renderer::Renderer() {
-    // 5. Setup the Full-Screen Quad Geometry
-    float quadVertices[] = {
-        // positions   // texCoords
-        -1.0f,  1.0f,  0.0f, 1.0f,
-        -1.0f, -1.0f,  0.0f, 0.0f,
-         1.0f, -1.0f,  1.0f, 0.0f,
-
-        -1.0f,  1.0f,  0.0f, 1.0f,
-         1.0f, -1.0f,  1.0f, 0.0f,
-         1.0f,  1.0f,  1.0f, 1.0f
+    // better full screen quad
+     float quadVertices[] = {
+         // position      UV
+         -1.0f, -1.0f,    0.0f, 0.0f,
+         3.0f, -1.0f,    2.0f, 0.0f,
+         -1.0f,  3.0f,    0.0f, 2.0f
     };
 
     glGenVertexArrays(1, &quadVAO);
@@ -35,41 +31,45 @@ Renderer::~Renderer() {
     glDeleteBuffers(1, &quadVBO);
 }
 
-void Renderer::draw(Shader& shader, GLFWwindow* window, Camera& camera, unsigned int skyboxTexture, float currentFrame) {
-    // Activate shader and pass uniforms to GPU
-    shader.use();
+void Renderer::draw(
+    Shader& shader, Camera& camera, unsigned int texture, float currentFrame,
+    int renderWidth, int renderHeight, bool blackHolePass, bool highQualityPass
+) {
+    
+glViewport(0, 0, renderWidth, renderHeight);
+shader.use();
+
+if (blackHolePass) {
+    shader.setBool("uHighQualityPass", highQualityPass);
+    shader.setFloat("uHighQualityRadius", 0.45f);
     shader.setFloat("uTime", currentFrame);
-    
-    // Pass the actual window size (important for resizing)
-    int width, height;
-    glfwGetFramebufferSize(window, &width, &height);
-    shader.setVec2("uResolution", glm::vec2((float)width, (float)height));
-    
-    // Setup initial camera position
+    shader.setVec2("uResolution", glm::vec2(renderWidth, renderHeight));
     shader.setVec3("uCameraPos", camera.Position);
 
-    // Create standard view and projection matrices
     glm::mat4 view = camera.GetViewMatrix();
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 100.0f);
-    
-    // Pass them to the shader
-    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uViewMatrix"), 1, GL_FALSE, &view[0][0]);
-    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uProjectionMatrix"), 1, GL_FALSE, &projection[0][0]);
-    // Also pass the inverse for easy ray generation
+    glm::mat4 projection = glm::perspective(
+        glm::radians(45.0f),
+        float(renderWidth) / float(renderHeight),
+        0.1f, 100.0f
+    );
+
     glm::mat4 invProjView = glm::inverse(projection * view);
-    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uInvProjView"), 1, GL_FALSE, &invProjView[0][0]);
+
+    glUniformMatrix4fv(
+        glGetUniformLocation(shader.ID, "uInvProjView"),
+        1, GL_FALSE, &invProjView[0][0]
+    );
 
     particleBuffer.bind(0);
-    // Pass particle count to shader
-    shader.setInt("uParticleCount", (int)particleBuffer.getParticleCount());
+    shader.setInt("uParticleCount", int(particleBuffer.getParticleCount()));
+}
 
-    // Bind the skybox texture to unit 0 before drawing
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, skyboxTexture);
+// Bind whichever texture this pass uses.
+glActiveTexture(GL_TEXTURE0);
+glBindTexture(GL_TEXTURE_2D, texture);
 
-    // Draw the quad
-    glBindVertexArray(quadVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+glBindVertexArray(quadVAO);
+glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
 void Renderer::updateParticles(const std::vector<Particle>& particles) {

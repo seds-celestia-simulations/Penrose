@@ -38,17 +38,17 @@ State cart_to_sphere(const State& cartState){
 
     return State(Vector4d(t, r, theta, phi), cart_to_sph_Jacobian(r,theta,phi)*cartState.U);
 }
-State sph_to_cart(State& cartState){
-    double t = cartState.X[0];
-    double r = cartState.X[1];
-    double theta = cartState.X[2];
-    double phi = cartState.X[3];
+State sph_to_cart(State& sphState){
+    double t = sphState.X[0];
+    double r = sphState.X[1];
+    double theta = sphState.X[2];
+    double phi = sphState.X[3];
 
     double x = r * std::cos(phi) * std::sin(theta);
     double y = r * std::sin(phi) * std::sin(theta);
     double z = r* std::cos(theta);
 
-    return State(Vector4d(t, x,y,z), sph_to_cart_Jacobian(r,theta,phi)*cartState.U);
+    return State(Vector4d(t, x,y,z), sph_to_cart_Jacobian(r,theta,phi)*sphState.U);
 }
 
 
@@ -61,6 +61,9 @@ Vector4d find_acceleration(const State& state){
     double vr  = state.U[1];
     double vtheta = state.U[2];
     double vphi = state.U[3];
+
+    double sinth = std::sin(theta);
+    double costh = std::cos(theta);
     // TODO
     // Replace all  sin cos with precomputes
     // replace r-rs with metric component + 1e-8 for diviide by zero shit
@@ -69,13 +72,13 @@ Vector4d find_acceleration(const State& state){
     double Tr_tt = rs * (r-rs)/(2.0*r*r*r); 
     double Tr_rr = -rs/(2.0*r*(r-rs));
     double Tr_thth = -(r-rs);
-    double Tr_phph = -(r-rs)*std::sin(theta)*std::sin(theta);
+    double Tr_phph = -(r-rs)*sinth*sinth;
     //polar component
     double Tth_rth = 1/r;
-    double Tth_phph = -std::sin(theta)*std::cos(theta);
+    double Tth_phph = -sinth*costh;
     //azimuthal component 
     double Tph_rph = 1/r;
-    double Tph_thph = 1/std::tan(theta) + 1e-8;
+    double Tph_thph = costh/(sinth + 1e-8);
     //Time-component
     double Tt_tr = rs/(2*r*(r-rs)); 
     // T(t) component(accelerationequations)
@@ -84,6 +87,10 @@ Vector4d find_acceleration(const State& state){
     double atheta = -(2*Tth_rth*vr*vtheta + Tth_phph*vphi*vphi);
     double aphi = -(2*Tph_rph*vr*vphi + 2* Tph_thph*vtheta*vphi);
 
+
+if (r <= rs * 1.001) {
+        return Vector4d(0.0, 0.0, 0.0, 0.0); 
+    }
     return Vector4d(at, ar, atheta, aphi);
     
 }
@@ -96,7 +103,7 @@ State create_state_derivate(const State& s) {
 }
  
 
-State Integrator(const State& s, double dt){
+State Integrator(const State& s){
 
 //s = s_0 +kt 
 

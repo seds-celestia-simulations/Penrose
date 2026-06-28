@@ -9,7 +9,8 @@ enum Camera_Movement {
     FORWARD,
     BACKWARD,
     LEFT,
-    RIGHT
+    RIGHT,
+    SHIFT
 };
 
 class Camera {
@@ -30,7 +31,7 @@ public:
     float RotationSpeed;
 
     // Constructor
-    Camera(glm::vec3 position = glm::vec3(0.5f, 0.5f, 2.0f)) {
+    Camera(glm::vec3 position = glm::vec3(0.0f, -8.0f, 4.0f)) {
         Position = position;
         WorldUp = glm::vec3(0.0f, 1.0f, 0.0f);
         Yaw = -90.0f;
@@ -58,18 +59,19 @@ public:
             Position += Right * velocity;
     }
 
-    // Processes input received from arrow keys (Rotation)
-    void ProcessRotation(float xoffset, float yoffset, float deltaTime) {
-        Yaw += xoffset * RotationSpeed * deltaTime;
-        Pitch += yoffset * RotationSpeed * deltaTime;
+    // Processes input received from mouse keys
+    void ProcessMouseMovement(float xoffset, float yoffset)
+{
+    const float mouseSensitivity = 0.08f;
 
-        // Make sure that when pitch is out of bounds, screen doesn't get flipped
-        if (Pitch > 89.0f) Pitch = 89.0f;
-        if (Pitch < -89.0f) Pitch = -89.0f;
+    Yaw   += xoffset * mouseSensitivity;
+    Pitch += yoffset * mouseSensitivity;
 
-        // Update Front, Right and Up Vectors using the updated Euler angles
-        updateCameraVectors();
-    }
+    if (Pitch > 89.0f)  Pitch = 89.0f;
+    if (Pitch < -89.0f) Pitch = -89.0f;
+
+    updateCameraVectors();
+}
 
 private:
     // Calculates the front vector from the Camera's (updated) Euler Angles

@@ -1,30 +1,62 @@
 cmake_minimum_required(VERSION 3.22)
+
+# Automatically hook up the local vcpkg toolchain if it exists
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vpkg/scripts/buildsystems/vcpkg.cmake")
+    set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake")
+    set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+endif()
+
 project(Penrose)
 
 # Enforce modern C++
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find the packages specified in vcpkg.json
-find_package(glfw3 CONFIG REQUIRED)
-find_package(glad CONFIG REQUIRED)
+# 1. Fetch and build GLFW automatically (Since it's not using vcpkg)
+include(FetchContent)
+FetchContent_Declare(
+    glfw
+    GIT_REPOSITORY https://github.com/glfw/glfw.git
+    GIT_TAG        3.4
+)
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(glfw)
+
+# 2. Find external packages via your local vcpkg
 find_package(glm CONFIG REQUIRED)
 find_package(Eigen3 CONFIG REQUIRED)
 
-# Add your source files here
+# 3. Compile GLAD manually from your local include/src folders
+add_library(glad include/glad/glad.c)
+target_include_directories(glad PUBLIC include)
+
+# 4. Setup your main executable
 add_executable(Penrose 
     src/main.cpp
     src/render/Texture.cpp
     src/render/Window.cpp
     src/render/Renderer.cpp
     src/render/ParticleBuffer.cpp
+    src/render/RenderTarget.cpp
 )
 
-target_include_directories(Penrose PRIVATE vendor)
-# Link the libraries to your executable
+# Tell your executable where to find the local include folder (for glad)
+target_include_directories(Penrose PRIVATE include vendor)
+
+# 5. Link everything together
 target_link_libraries(Penrose PRIVATE
     glfw
-    glad::glad
+    glad
     glm::glm
     Eigen3::Eigen
+)
+
+# Copy the entire shaders folder (including textures) next to the executable
+add_custom_command(TARGET Penrose POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/shaders"
+    "$<TARGET_FILE_DIR:Penrose>/shaders"
 )

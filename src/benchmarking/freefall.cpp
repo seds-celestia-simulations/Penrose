@@ -49,7 +49,7 @@ void benchmark_freefall(double r0, double dt) {
     }
 
     // ---- CSV ----
-    std::ofstream csv("freefall.csv");
+    std::ofstream csv("src/benchmarking/data/freefall.csv");
     csv << "tau,r,vt,vr\n";
 
     // ---- Terminal header ----
@@ -81,6 +81,17 @@ void benchmark_freefall(double r0, double dt) {
                       << std::setw(14) << vr_
                       << "\n";
         }
+        // DIAGNOSTIC 1: Stop if it takes too many steps
+        if (step > 100000) {
+            std::cout << "TERMINATED: Reached 100k steps. r is currently: " << r_ << "\n";
+            break;
+        }
+
+        // DIAGNOSTIC 2: Stop if the math breaks (NaN)
+        if (std::isnan(r_)) {
+            std::cout << "TERMINATED: r became NaN at step " << step << "\n";
+            break;
+        }
 
         if (r_ <= rs) {
             double error         = std::abs(tau - tau_analytical);
@@ -93,7 +104,7 @@ void benchmark_freefall(double r0, double dt) {
             break;
         }
 
-        s = Integrator(s, dt);
+        s = Integrator(s);
         step++;
     }
 
