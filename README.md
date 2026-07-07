@@ -99,8 +99,7 @@ The visualization pipeline is intentionally separated from the scientific framew
 penrose/
 
 ├── docs/            # Documentation and architecture
-├── include/         # Public headers
-├── lightcone/       # Light cone visualization experiments
+├── include/         # Public headerss
 ├── notes/           # Research notes
 ├── scripts/         # Utility scripts
 ├── shaders/         # GPU rendering pipeline
