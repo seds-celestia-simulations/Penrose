@@ -60,3 +60,19 @@ add_custom_command(TARGET Penrose POST_BUILD
     "${CMAKE_CURRENT_SOURCE_DIR}/shaders"
     "$<TARGET_FILE_DIR:Penrose>/shaders"
 )
+
+# 6. Setup the benchmark executable
+add_executable(benchmark_test
+    src/benchmarking/main_benchmark.cpp
+    src/benchmarking/orbital.cpp
+    src/benchmarking/null_geodesic.cpp
+    src/benchmarking/freefall.cpp
+    src/spacetime/CoordinateChart.cpp
+    src/spacetime/SchwarzschildMetric.cpp
+    src/dynamics/GeodesicDynamics.cpp
+    src/integration/RK4Integrator.cpp
+    src/simulation/TrajectorySolver.cpp
+    src/simulation/TerminationPolicy.cpp
+)
+target_include_directories(benchmark_test PRIVATE src)
+target_link_libraries(benchmark_test PRIVATE Eigen3::Eigen)

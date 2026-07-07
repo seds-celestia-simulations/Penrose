@@ -1,11 +1,14 @@
 #include "freefall.h"
 #include "orbital.h"
 #include "null_geodesic.h"
-#include "../Constants.h"
 #include <iostream>
+#include <vector>
+#include <cmath>
+
+constexpr double rs = 1.0;
 
 int main() {
-
+    double dt = 0.001;
     // ----------------------------------------------------------------
     // BENCHMARK 1: Radial free-fall
     // Drops a particle from r0 with E=1 and measures horizon crossing

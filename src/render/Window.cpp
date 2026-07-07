@@ -1,6 +1,7 @@
 #include "Window.h"
-#include "../Constants.h"
 
+// Define default dt for camera movement
+static const float dt = 0.05f;
 // Prevent repeated toggles while a key is held.
 static bool pKeyPressed = false;
 static bool tabKeyPressed = false;

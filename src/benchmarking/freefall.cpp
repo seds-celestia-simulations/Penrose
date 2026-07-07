@@ -1,5 +1,9 @@
 #define _USE_MATH_DEFINES
 #include "freefall.h"
+#include "../spacetime/SchwarzschildMetric.h"
+#include "../dynamics/GeodesicDynamics.h"
+#include "../simulation/TrajectorySolver.h"
+#include "../simulation/TerminationPolicy.h"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -8,6 +12,8 @@
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+constexpr double rs = 1.0;
 
 // Exact proper time from r0 to rs for radial free-fall with E=1.
 // Derived from (dr/dtau)^2 = rs/r:
@@ -26,8 +32,8 @@ void benchmark_freefall(double r0, double dt) {
     double vr = -std::sqrt(rs / r0);
 
     State s(
-        Vector4d(0.0, r0, M_PI / 2.0, 0.0),
-        Vector4d(vt, vr, 0.0, 0.0)
+        Eigen::Vector4d(0.0, r0, M_PI / 2.0, 0.0),
+        Eigen::Vector4d(vt, vr, 0.0, 0.0)
     );
 
     double tau_analytical = analytical_freefall_time(r0);
@@ -48,6 +54,12 @@ void benchmark_freefall(double r0, double dt) {
         std::cout << "tau_analytical           = " << tau_analytical << "\n\n";
     }
 
+    Spacetime::SchwarzschildMetric metric(rs);
+    Dynamics::GeodesicDynamics dynamics(metric);
+    Simulation::HorizonTermination policy(rs, 1.0); // terminate exactly at rs
+
+    std::vector<State> history = Simulation::TrajectorySolver::solve(s, dynamics, policy, dt, 100000);
+
     // ---- CSV ----
     std::ofstream csv("src/benchmarking/data/freefall.csv");
     csv << "tau,r,vt,vr\n";
@@ -61,12 +73,12 @@ void benchmark_freefall(double r0, double dt) {
               << "\n";
     std::cout << std::string(64, '-') << "\n";
 
-    int step = 0;
-    while (true) {
+    for (size_t step = 0; step < history.size(); ++step) {
+        const State& state = history[step];
         double tau = step * dt;
-        double r_  = s.X[1];
-        double vt_ = s.U[0];
-        double vr_ = s.U[1];
+        double r_  = state.X[1];
+        double vt_ = state.U[0];
+        double vr_ = state.U[1];
 
         // Write every step to CSV
         csv << std::fixed << std::setprecision(8)
@@ -80,11 +92,6 @@ void benchmark_freefall(double r0, double dt) {
                       << std::setw(14) << vt_
                       << std::setw(14) << vr_
                       << "\n";
-        }
-        // DIAGNOSTIC 1: Stop if it takes too many steps
-        if (step > 100000) {
-            std::cout << "TERMINATED: Reached 100k steps. r is currently: " << r_ << "\n";
-            break;
         }
 
         // DIAGNOSTIC 2: Stop if the math breaks (NaN)
@@ -103,9 +110,11 @@ void benchmark_freefall(double r0, double dt) {
             std::cout << "relative error = " << error_percent  << " %\n";
             break;
         }
-
-        s = Integrator(s);
-        step++;
+    }
+    
+    if (history.size() == 100000 + 1) { // 100k steps plus initial state
+        const State& last_state = history.back();
+        std::cout << "TERMINATED: Reached 100k steps. r is currently: " << last_state.X[1] << "\n";
     }
 
     csv.close();

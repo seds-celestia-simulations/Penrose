@@ -1,5 +1,9 @@
 #define _USE_MATH_DEFINES
 #include "null_geodesic.h"
+#include "../spacetime/SchwarzschildMetric.h"
+#include "../dynamics/GeodesicDynamics.h"
+#include "../simulation/TrajectorySolver.h"
+#include "../simulation/TerminationPolicy.h"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -8,6 +12,8 @@
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+constexpr double rs = 1.0;
 
 void benchmark_null_geodesic(double r0, double vr, double vph, double dt, int max_steps) {
     double f = 1.0 - rs / r0;
@@ -18,8 +24,8 @@ void benchmark_null_geodesic(double r0, double vr, double vph, double dt, int ma
     double vt       = std::sqrt((term_r + term_phi) / f);
 
     State s(
-        Vector4d(0.0, r0, M_PI / 2.0, 0.0),
-        Vector4d(vt, vr, 0.0, vph)
+        Eigen::Vector4d(0.0, r0, M_PI / 2.0, 0.0),
+        Eigen::Vector4d(vt, vr, 0.0, vph)
     );
 
     // ---- Initial invariants ----
@@ -34,21 +40,9 @@ void benchmark_null_geodesic(double r0, double vr, double vph, double dt, int ma
     std::cout << "vt = " << vt << "\n";
     std::cout << "Impact parameter b = " << b0 << "\n\n";
 
-     // ---- CSV ----
-    // std::ostringstream name;
-    // name << std::fixed << std::setprecision(6) << dt;
-
+    // ---- CSV ----
     std::ofstream csv("src/benchmarking/data/null_b_" + std::to_string(b0) + ".csv");
-   // std::ofstream csv("src/benchmarking/data/null_dt_" + name.str() + ".csv");
     csv << "lambda,r,phi,vt,vr,vph,H,E,L,dE,dL,dvt,dvph,phi_total\n";
-
-    // ---- Tracking variables ----
-    double r_min = r0;
-
-    double vt_prev = vt;
-    double vph_prev = vph;
-    double phi_total = 0.0;
-    double phi_prev = s.X(3);
 
     // ---- Terminal header ----
     std::cout << std::setw(8)  << "step"
@@ -61,19 +55,51 @@ void benchmark_null_geodesic(double r0, double vr, double vph, double dt, int ma
               << "\n";
     std::cout << std::string(80, '-') << "\n";
 
-    for (int step = 0; step <= max_steps; ++step) {
+    // ---- Configure Simulation ----
+    Spacetime::SchwarzschildMetric metric(rs);
+    Dynamics::GeodesicDynamics dynamics(metric);
+    Simulation::HorizonTermination policy(rs, 1.0001); // terminate at rs * 1.0001
+
+    auto projection = [](State& state, int step) {
+        double r_  = state.X[1];
+        if (r_ <= rs) return; // Don't project if inside or at horizon
+        double f_  = 1.0 - rs / r_;
+        double vr_  = state.U[1];
+        double vph_ = state.U[3];
+
+        double vt_new = std::sqrt((vr_*vr_/f_ + r_*r_*vph_*vph_) / f_);
+        if (step % 1000 == 0) {
+            state.U[0] = vt_new;
+        }
+
+        if (state.U[0] < 0.0) {
+            state.U[0] = std::abs(state.U[0]);
+        }
+    };
+
+    std::vector<State> history = Simulation::TrajectorySolver::solve(s, dynamics, policy, dt, max_steps, projection);
+
+    // ---- Tracking variables ----
+    double r_min = r0;
+    double vt_prev = vt;
+    double vph_prev = vph;
+    double phi_total = 0.0;
+    double phi_prev = s.X[3];
+
+    for (size_t step = 0; step < history.size(); ++step) {
+        const State& state = history[step];
         double lambda = step * dt;
 
-        double r_   = s.X(1);
-        double phi_ = s.X(3);
-        double vt_  = s.U(0);
-        double vr_  = s.U(1);
-        double vph_ = s.U(3);
+        double r_   = state.X[1];
+        double phi_ = state.X[3];
+        double vt_  = state.U[0];
+        double vr_  = state.U[1];
+        double vph_ = state.U[3];
 
         double f_ = 1.0 - rs / r_;
         double dphi = phi_ - phi_prev;
 
-// unwrap
+        // unwrap
         if (dphi < -M_PI) dphi += 2*M_PI;
         if (dphi >  M_PI) dphi -= 2*M_PI;
 
@@ -131,7 +157,7 @@ void benchmark_null_geodesic(double r0, double vr, double vph, double dt, int ma
                       << std::setw(14) << std::scientific << H_error << std::fixed
                       << std::setw(14) << dE
                       << std::setw(14) << dL
-                      <<  "H=" << H
+                      <<  " H=" << H
                       << " E=" << E_
                       << " L=" << L_ 
                       << "\n";
@@ -147,34 +173,10 @@ void benchmark_null_geodesic(double r0, double vr, double vph, double dt, int ma
             std::cout << "\n[Escaped]\n";
             break;
         }
+    }
 
-        if (step == max_steps) {
-            std::cout << "\n[Max steps reached]\n";
-            break;
-        }
-
-        // ---- Warning ----
-        if (std::abs(dE) > 1e-4 || std::abs(dL) > 1e-4 || H_error > 1e-4) {
-            std::cout << "\n[WARNING] Numerical drift detected\n";
-        }
-
-        // ---- Integrate ----
-        s = Integrator(s);
-
-        r_  = s.X(1);
-f_  = 1.0 - rs / r_;
-
-vr_  = s.U(1);
-vph_ = s.U(3);
-
-double vt_new = std::sqrt((vr_*vr_/f_ + r_*r_*vph_*vph_) / f_);
-if (step % 1000 == 0) {
-    s.U(0) = vt_new;
-}
-
-        if (s.U(0) < 0.0) {
-        s.U(0) = std::abs(s.U(0));
-}
+    if (history.size() - 1 == (size_t)max_steps) {
+        std::cout << "\n[Max steps reached]\n";
     }
 
     csv.close();

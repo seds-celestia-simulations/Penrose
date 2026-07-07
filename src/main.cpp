@@ -8,7 +8,6 @@
 #include <random>
 
 // Physics headers
-#include "Constants.h"
 
 // Rendering headers
 #include "render/Shader.h"

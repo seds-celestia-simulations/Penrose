@@ -1,5 +1,9 @@
 #define _USE_MATH_DEFINES
 #include "orbital.h"
+#include "../spacetime/SchwarzschildMetric.h"
+#include "../dynamics/GeodesicDynamics.h"
+#include "../simulation/TrajectorySolver.h"
+#include "../simulation/TerminationPolicy.h"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -8,6 +12,8 @@
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+constexpr double rs = 1.0;
 
 void benchmark_orbital(double r0, double vr, double vph, double dt, int max_steps) {
 
@@ -25,8 +31,8 @@ void benchmark_orbital(double r0, double vr, double vph, double dt, int max_step
     double vt = std::sqrt(inner);
 
     State s(
-        Vector4d(0.0, r0, M_PI / 2.0, 0.0),
-        Vector4d(vt, vr, 0.0, vph)
+        Eigen::Vector4d(0.0, r0, M_PI / 2.0, 0.0),
+        Eigen::Vector4d(vt, vr, 0.0, vph)
     );
 
     // ---- Diagnostics ----
@@ -49,6 +55,12 @@ void benchmark_orbital(double r0, double vr, double vph, double dt, int max_step
         std::cout << "L  (conserved)   = " << L         << "\n\n";
     }
 
+    Spacetime::SchwarzschildMetric metric(rs);
+    Dynamics::GeodesicDynamics dynamics(metric);
+    Simulation::HorizonTermination policy(rs, 1.0); // terminate exactly at rs
+
+    std::vector<State> history = Simulation::TrajectorySolver::solve(s, dynamics, policy, dt, max_steps);
+
     // ---- CSV ----
     std::ofstream csv("src/benchmarking/data/orbital.csv");
     csv << "tau,r,phi,vt,vr,vph,norm\n";
@@ -63,16 +75,21 @@ void benchmark_orbital(double r0, double vr, double vph, double dt, int max_step
               << "\n";
     std::cout << std::string(72, '-') << "\n";
 
-    for (int step = 0; step <= max_steps; ++step) {
+    for (size_t step = 0; step < history.size(); ++step) {
+        const State& state = history[step];
         double tau  = step * dt;
-        double r_   = s.X[1];
-        double phi_ = s.X[3];
-        double vt_  = s.U[0];
-        double vr_  = s.U[1];
-        double vph_ = s.U[3];
-        double f_   = 1.0 - rs / r_;
-        double norm = -f_ * vt_ * vt_ + (1.0 / f_) * vr_ * vr_
-                      + r_ * r_ * vph_ * vph_;
+        double r_   = state.X[1];
+        double phi_ = state.X[3];
+        double vt_  = state.U[0];
+        double vr_  = state.U[1];
+        double vph_ = state.U[3];
+        
+        // Don't calculate norm if r is singular
+        double norm = 0.0;
+        if (r_ > rs) {
+            double f_   = 1.0 - rs / r_;
+            norm = -f_ * vt_ * vt_ + (1.0 / f_) * vr_ * vr_ + r_ * r_ * vph_ * vph_;
+        }
 
         csv << std::fixed << std::setprecision(8)
             << tau  << ","
@@ -92,23 +109,18 @@ void benchmark_orbital(double r0, double vr, double vph, double dt, int max_step
                       << std::setw(14) << norm
                       << "\n";
         }
-
+        
         if (r_ <= rs) {
-            std::cout << "\n[Horizon crossed] step = " << step
-                      << "  tau = " << tau << "\n";
-            break;
+            std::cout << "\n[Horizon crossed] step = " << step << "  tau = " << tau << "\n";
         }
         if (r_ > 1000.0) {
-            std::cout << "\n[Escaped to infinity] step = " << step
-                      << "  tau = " << tau << "\n";
+            std::cout << "\n[Escaped to infinity] step = " << step << "  tau = " << tau << "\n";
             break;
         }
-        if (step == max_steps) {
-            std::cout << "\n[Max steps reached] tau = " << tau << "\n";
-            break;
-        }
+    }
 
-        s = Integrator(s);
+    if (history.size() - 1 == (size_t)max_steps) {
+        std::cout << "\n[Max steps reached] tau = " << (history.size() - 1) * dt << "\n";
     }
 
     csv.close();
