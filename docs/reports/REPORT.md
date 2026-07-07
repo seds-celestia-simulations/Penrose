@@ -9,7 +9,7 @@ using a 4th-order Runge-Kutta integrator for null geodesics. The skybox is
 rendered from an equirectangular environment map, and particles (accretion disk
 tracers) are uploaded via SSBO for ray intersection.
 
-**Repository**: <https://github.com/AMVS24/Penrose>
+**Repository**: <https://github.com/seds-celestia-simulations/Penrose>
 
 ---
 
@@ -53,6 +53,8 @@ Penrose/
 │   ├── actual_bg_img.png        # Expected skybox output
 │   └── bg_issue_img.jpg         # Distorted (bugged) output
 └── build/                       # MSVC build artifacts (not committed)
+
+
 ```
 
 ---

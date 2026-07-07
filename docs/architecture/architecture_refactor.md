@@ -2,8 +2,6 @@
 
 This document is the consolidated architecture reference for Penrose's post-refactor design. It preserves the historical architectural reasoning while explaining the framework shape produced by the refactor: a move from a single Schwarzschild rendering prototype toward a modular general relativistic trajectory framework.
 
-Important branch note: this file is authored on `main`, per the active working instruction. At the time of writing, `main` still contains the legacy source layout (`src/physics_engine`, shader-resident live rendering, no `docs/architecture/` history). The post-refactor implementation and historical architecture documents are available on the committed `post-refactor-architecture` branch and are treated here as read-only primary sources for the consolidated post-refactor reference.
-
 ## 1. Historical Overview
 
 Penrose began as a real-time Schwarzschild black hole renderer. The original working system had one successful purpose: produce interactive gravitational lensing by tracing light near a fixed, non-rotating black hole. That implementation combined C++ OpenGL infrastructure with shader-side ray evolution and a CPU physics/benchmark path.
@@ -888,24 +886,4 @@ Run:
 
 The benchmark pipeline writes CSV outputs under `src/benchmarking/data/` in the post-refactor layout.
 
-### Read architecture history
-
-The complete historical architecture set lives on the post-refactor reference branch under:
-
-```text
-docs/architecture/
-```
-
-The most important source documents are:
-
-| Document | Role |
-|---|---|
-| `deep-architectural-review.md` | Baseline review of legacy architecture |
-| `penrose-implementation-blueprint.md` | Preservation-first migration plan |
-| `refactor_summary.md` | Initial extraction summary |
-| `post_refactor_review.md` | Mid-refactor critique |
-| `dynamics-refinement-blueprint.md` | Metric/Dynamics split plan |
-| `refactored_architecture_summary.md` | Post-refactor CPU framework summary |
-| `penrose-architecture-specification.md` | Target framework identity |
-| `penrose-architecture-pipeline.md` | Target pipeline and data-flow model |
 
