@@ -50,7 +50,7 @@ void benchmark_orbital(double r0, double vr, double vph, double dt, int max_step
     }
 
     // ---- CSV ----
-    std::ofstream csv("orbital.csv");
+    std::ofstream csv("src/benchmarking/data/orbital.csv");
     csv << "tau,r,phi,vt,vr,vph,norm\n";
 
     // ---- Terminal header ----
@@ -108,7 +108,7 @@ void benchmark_orbital(double r0, double vr, double vph, double dt, int max_step
             break;
         }
 
-        s = Integrator(s, dt);
+        s = Integrator(s);
     }
 
     csv.close();

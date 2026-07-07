@@ -20,7 +20,8 @@ public:
     ~Renderer();
 
     // draw function called by main
-    void draw(Shader& shader, GLFWwindow* window, Camera& camera, unsigned int skyboxTexture, float currentFrame);
+    void draw(Shader& shader, Camera& camera, unsigned int texture, float currentFrame,   
+     int renderWidth, int renderHeight, bool blackHolePass, bool highQualityPass);
 
     void updateParticles(const std::vector<Particle>& particles);
     

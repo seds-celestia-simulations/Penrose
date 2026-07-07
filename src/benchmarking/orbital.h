@@ -1,5 +1,5 @@
 #pragma once
-#include "physics.h"
+#include "../physics_engine/physics.h"
 
 // General geodesic benchmark.
 // Supply any r0, vr, vph and dt freely.

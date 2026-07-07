@@ -1,1 +1,9 @@
 build/ 
+build_win/
+vcpkg/
+
+# I have some weird path error
+include/  
+
+*.exe
+*.csv 
