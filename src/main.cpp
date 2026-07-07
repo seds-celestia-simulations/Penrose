@@ -25,6 +25,10 @@ extern "C" {
 }
 #endif
 
+#ifndef _WIN32
+#include <cstdlib>
+#endif
+
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
@@ -37,6 +41,12 @@ float lastMouseX = SCR_WIDTH  * 0.5f;
 float lastMouseY = SCR_HEIGHT * 0.5f;
 
 int main() {
+#ifndef _WIN32
+    // Force NVIDIA GPU usage on Linux systems with Prime offload
+    setenv("__NV_PRIME_RENDER_OFFLOAD", "1", 1);
+    setenv("__GLX_VENDOR_LIBRARY_NAME", "nvidia", 1);
+#endif
+
     // 0. Register GLFW Error Callback
     glfwSetErrorCallback([](int error, const char* description) {
         std::cerr << "GLFW Error (" << error << "): " << description << std::endl;
