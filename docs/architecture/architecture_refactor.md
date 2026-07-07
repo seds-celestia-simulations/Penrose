@@ -920,16 +920,16 @@ On Windows:
 cmake --build build --config Debug --target benchmark_test
 ```
 
-Run:
-
-```bash
-./build/benchmark_test
-```
-
 On Windows:
 
 ```powershell
 .\build\Debug\benchmark_test.exe
+```
+
+On Linux/MacOS:
+
+```bash
+./build/benchmark_test
 ```
 
 The benchmark pipeline writes CSV outputs under `src/benchmarking/data/`.
