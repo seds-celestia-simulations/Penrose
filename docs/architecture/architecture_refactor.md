@@ -807,12 +807,56 @@ The intended future is not to discard the shader renderer. It is to make the sha
 
 ## 15. Running Penrose Features
 
-### Build the main visualizer
+For project-level build notes and dependency context, see [README.md](../../README.md) and [docs/reports/REPORT.md](../reports/REPORT.md). This section summarizes the commands needed to run Penrose locally.
+
+### Prerequisites
+
+From [docs/reports/REPORT.md](../reports/REPORT.md):
+
+- C++20 compiler
+- CMake 3.22 or newer
+- vcpkg with the dependencies listed in `vcpkg.json`: `glfw3`, `glad`, `glm`, `eigen3`
+
+On Windows, use a Visual Studio toolchain (MSVC) or another supported C++ compiler exposed to CMake.
+
+### Install and bootstrap vcpkg (Windows)
+
+Follow [README.md](../../README.md):
+
+```powershell
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg
+.\bootstrap-vcpkg.bat
+```
+
+Remember the absolute path to your vcpkg root. You will pass it to CMake through the vcpkg toolchain file.
+
+### Build the main visualizer on Windows (vcpkg)
+
+From the Penrose repository root in PowerShell or Command Prompt:
+
+```powershell
+cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=[PATH_TO_VCPKG]\scripts\buildsystems\vcpkg.cmake
+cmake --build build --config Debug
+```
+
+Run the executable from the build output directory:
+
+```powershell
+cd build\Debug
+.\Penrose.exe
+```
+
+Run from `build\Debug` (or the directory containing `Penrose.exe`) so the post-build step can find the copied `shaders/` folder next to the executable. This matches the workflow documented in [README.md](../../README.md) and [docs/reports/REPORT.md](../reports/REPORT.md).
+
+### Build the main visualizer on Linux/macOS
+
+If a local `vcpkg/` directory exists at the repository root, `CMakeLists.txt` can pick up its toolchain automatically. Otherwise pass the toolchain explicitly as on Windows.
 
 From the repository root:
 
 ```bash
-cmake -S . -B build
+cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=[PATH_TO_VCPKG]/scripts/buildsystems/vcpkg.cmake
 cmake --build build
 ```
 
@@ -863,19 +907,17 @@ Follow the interactive prompts to select the image sequence and frame rate.
 
 ### Run CPU benchmarks
 
-On `main`, the benchmark sources exist but are not wired into the shown `CMakeLists.txt` target. Build/run instructions may require manual compilation or a benchmark-specific build setup.
-
-On the post-refactor branch, `CMakeLists.txt` defines:
-
-```text
-benchmark_test
-```
-
-Build:
+`CMakeLists.txt` defines the `benchmark_test` target. Build and run:
 
 ```bash
-cmake -S . -B build
+cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=[PATH_TO_VCPKG]/scripts/buildsystems/vcpkg.cmake
 cmake --build build --target benchmark_test
+```
+
+On Windows:
+
+```powershell
+cmake --build build --config Debug --target benchmark_test
 ```
 
 Run:
@@ -884,6 +926,12 @@ Run:
 ./build/benchmark_test
 ```
 
-The benchmark pipeline writes CSV outputs under `src/benchmarking/data/` in the post-refactor layout.
+On Windows:
+
+```powershell
+.\build\Debug\benchmark_test.exe
+```
+
+The benchmark pipeline writes CSV outputs under `src/benchmarking/data/`.
 
 
