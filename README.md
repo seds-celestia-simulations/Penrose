@@ -4,6 +4,10 @@
 
 Originally developed as a Schwarzschild black hole ray tracer, Penrose is evolving into a general-purpose framework for relativistic spacetime simulation, geodesic integration, validation, and scientific visualization.
 
+<br>
+
+<img width="975" height="575" alt="penrose" src="https://github.com/user-attachments/assets/42979505-8273-47f0-a5e5-b9e5b6aa6c3e" />
+
 ---
 
 ## Features
