@@ -1,5 +1,6 @@
 #define _USE_MATH_DEFINES
 #include "null_geodesic.h"
+#include "benchmark_io.h"
 #include "../spacetime/SchwarzschildMetric.h"
 #include "../dynamics/GeodesicDynamics.h"
 #include "../simulation/TrajectorySolver.h"
@@ -41,7 +42,11 @@ void benchmark_null_geodesic(double r0, double vr, double vph, double dt, int ma
     std::cout << "Impact parameter b = " << b0 << "\n\n";
 
     // ---- CSV ----
-    std::ofstream csv("src/benchmarking/data/null_b_" + std::to_string(b0) + ".csv");
+    const std::string csv_name = "null_b_" + std::to_string(b0) + ".csv";
+    std::ofstream csv = open_benchmark_csv(csv_name);
+    if (!csv.is_open()) {
+        return;
+    }
     csv << "lambda,r,phi,vt,vr,vph,H,E,L,dE,dL,dvt,dvph,phi_total\n";
 
     // ---- Terminal header ----
@@ -182,5 +187,5 @@ void benchmark_null_geodesic(double r0, double vr, double vph, double dt, int ma
     csv.close();
 
     std::cout << "\nMin radius reached: " << r_min << "\n";
-    std::cout << "CSV written.\n";
+    std::cout << "CSV written to " << (benchmark_data_dir() / csv_name) << "\n";
 }

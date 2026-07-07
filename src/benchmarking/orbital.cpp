@@ -1,5 +1,6 @@
 #define _USE_MATH_DEFINES
 #include "orbital.h"
+#include "benchmark_io.h"
 #include "../spacetime/SchwarzschildMetric.h"
 #include "../dynamics/GeodesicDynamics.h"
 #include "../simulation/TrajectorySolver.h"
@@ -62,7 +63,10 @@ void benchmark_orbital(double r0, double vr, double vph, double dt, int max_step
     std::vector<State> history = Simulation::TrajectorySolver::solve(s, dynamics, policy, dt, max_steps);
 
     // ---- CSV ----
-    std::ofstream csv("src/benchmarking/data/orbital.csv");
+    std::ofstream csv = open_benchmark_csv("orbital.csv");
+    if (!csv.is_open()) {
+        return;
+    }
     csv << "tau,r,phi,vt,vr,vph,norm\n";
 
     // ---- Terminal header ----
@@ -124,6 +128,6 @@ void benchmark_orbital(double r0, double vr, double vph, double dt, int max_step
     }
 
     csv.close();
-    std::cout << "\nCSV written to orbital.csv\n";
+    std::cout << "\nCSV written to " << (benchmark_data_dir() / "orbital.csv") << "\n";
     std::cout << "=== Orbital complete ===\n";
 }

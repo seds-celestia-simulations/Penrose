@@ -1,5 +1,6 @@
 #define _USE_MATH_DEFINES
 #include "freefall.h"
+#include "benchmark_io.h"
 #include "../spacetime/SchwarzschildMetric.h"
 #include "../dynamics/GeodesicDynamics.h"
 #include "../simulation/TrajectorySolver.h"
@@ -61,7 +62,10 @@ void benchmark_freefall(double r0, double dt) {
     std::vector<State> history = Simulation::TrajectorySolver::solve(s, dynamics, policy, dt, 100000);
 
     // ---- CSV ----
-    std::ofstream csv("src/benchmarking/data/freefall.csv");
+    std::ofstream csv = open_benchmark_csv("freefall.csv");
+    if (!csv.is_open()) {
+        return;
+    }
     csv << "tau,r,vt,vr\n";
 
     // ---- Terminal header ----
@@ -118,6 +122,6 @@ void benchmark_freefall(double r0, double dt) {
     }
 
     csv.close();
-    std::cout << "\nCSV written to freefall.csv\n";
+    std::cout << "\nCSV written to " << (benchmark_data_dir() / "freefall.csv") << "\n";
     std::cout << "=== Free-fall complete ===\n";
 }

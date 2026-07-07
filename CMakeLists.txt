@@ -75,4 +75,5 @@ add_executable(benchmark_test
     src/simulation/TerminationPolicy.cpp
 )
 target_include_directories(benchmark_test PRIVATE src)
+target_compile_definitions(benchmark_test PRIVATE PENROSE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 target_link_libraries(benchmark_test PRIVATE Eigen3::Eigen)
