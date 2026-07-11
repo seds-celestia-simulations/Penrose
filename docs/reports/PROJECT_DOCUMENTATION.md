@@ -15,20 +15,23 @@ To achieve real-time frame rates, Penrose implements this integration directly w
 
 ### 2. High-Level Architecture
 
-The framework is partitioned into a dual-pipeline architecture to decouple offline verification from real-time visualization:
+The framework is partitioned into a dual-pipeline architecture to decouple offline verification from real-time visualization. These pipelines are separate at the repository level: the **CPU physics pipeline** lives under `physics/`, and the **GPU real-time pipeline** lives under `realtime/`.
 
 ```
 +-----------------------------------------------------------------------------+
 |                            Physics Pipeline (CPU)                            |
+|  Location: physics/                                                          |
 |  - Define initial conditions (Position/Velocity) via Eigen3                 |
 |  - Compute Schwarzschild Christoffel Symbols                                |
 |  - Evolve state using 4th-Order Runge-Kutta (RK4) Integrator                |
 |  - Export trajectories to CSV for analytical validation & plotting          |
+|  - Drivers: physics/validation/; outputs: physics/results/data/             |
 +-----------------------------------------------------------------------------+
                                        |
                                        v
 +-----------------------------------------------------------------------------+
 |                         Visualization Pipeline (GPU)                        |
+|  Location: realtime/                                                         |
 |  - Render screen-space Quad (Vertex Shader)                                 |
 |  - Un-project pixels to Cartesian world-space rays using InvProjView matrix |
 |  - Convert Cartesian coordinates to Spherical coordinates                   |
@@ -36,9 +39,11 @@ The framework is partitioned into a dual-pipeline architecture to decouple offli
 |  - March coordinates using parallelized GPU RK4 numerical solver            |
 |  - Evaluate horizon crossing, particle buffer (SSBO) collision, or escape    |
 |  - Write fragment colors, capture framebuffers to PPM, compile to MP4       |
+|  - Entry: realtime/main.cpp; shaders: realtime/shaders/; GL: realtime/renderer/ |
 +-----------------------------------------------------------------------------+
 ```
 
+The CPU pipeline is the scientific backend (integration, validation, export). The GPU pipeline is the interactive visualization backend (OpenGL, GLSL, frame capture). They do not share project-owned source; `shared/` is reserved for code that is genuinely used by both.
 ---
 
 ### 3. Physical Model
@@ -120,7 +125,7 @@ $$\mathbf{S}_{n+1} = \mathbf{S}_n + \frac{h}{6}(\mathbf{k}_1 + 2\mathbf{k}_2 + 2
 
 ### 5. GPU Rendering Pipeline
 
-The rendering engine processes screen-space rays through parallel GPU raymarching:
+The rendering engine (`realtime/`) processes screen-space rays through parallel GPU raymarching:
 
 1. **Ray Projection**: For each pixel, the fragment shader un-projects screen coordinates to construct a world-space Cartesian ray direction.
 2. **Raymarching Loop**: The ray is converted to spherical coordinates and advanced step-by-step using the GPU RK4 solver. At each step, the engine evaluates key boundary conditions:
@@ -141,7 +146,7 @@ The rendering engine processes screen-space rays through parallel GPU raymarchin
 
 ### 7. Validation & Benchmarking
 
-The numerical engine is validated by executing test scenarios and comparing results against analytical constraints.
+The numerical engine is validated by executing test scenarios in the CPU pipeline (`physics/validation/`) and comparing results against analytical constraints. Trajectory CSVs are written under `physics/results/data/`.
 
 #### 7.1 Radial Free-Fall Validation
 A test particle is released from rest at $r_0 = 10.0$ with energy $E = 1$ in Schwarzschild space ($r_s = 1.0$). The analytical proper time $\tau$ to reach the event horizon is given by:

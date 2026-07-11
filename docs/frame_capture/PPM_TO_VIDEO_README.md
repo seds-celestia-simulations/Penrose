@@ -30,7 +30,7 @@ You'll also need FFmpeg installed for video encoding:
 ### Basic Usage
 
 ```bash
-python ppm_to_video.py
+python realtime/visualization/ppm_to_video.py
 ```
 
 The script will:
@@ -63,7 +63,7 @@ Common frame rates:
 2. Press **P** to start recording frames
 3. Run your simulation/animation
 4. Press **P** again to stop recording
-5. Open terminal and run `python ppm_to_video.py`
+5. Open terminal and run `python realtime/visualization/ppm_to_video.py`
 6. Follow the prompts to select your capture and convert to video
 
 ```

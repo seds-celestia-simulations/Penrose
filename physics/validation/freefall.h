@@ -1,5 +1,5 @@
 #pragma once
-#include "../core/State.h"
+#include "../state/State.h"
 
 // Radial free-fall benchmark.
 // Drops a particle from rest at r0 with E=1 (released from infinity).

@@ -29,22 +29,22 @@ FetchContent_MakeAvailable(glfw)
 find_package(glm CONFIG REQUIRED)
 find_package(Eigen3 CONFIG REQUIRED)
 
-# 3. Compile GLAD manually from your local include/src folders
-add_library(glad include/glad/glad.c)
-target_include_directories(glad PUBLIC include)
+# 3. Compile GLAD manually from the realtime GPU headers
+add_library(glad realtime/gpu/glad/glad.c)
+target_include_directories(glad PUBLIC realtime/gpu)
 
-# 4. Setup your main executable
+# 4. GPU real-time visualization executable
 add_executable(Penrose 
-    src/main.cpp
-    src/render/Texture.cpp
-    src/render/Window.cpp
-    src/render/Renderer.cpp
-    src/render/ParticleBuffer.cpp
-    src/render/RenderTarget.cpp
+    realtime/main.cpp
+    realtime/renderer/Texture.cpp
+    realtime/renderer/Window.cpp
+    realtime/renderer/Renderer.cpp
+    realtime/renderer/ParticleBuffer.cpp
+    realtime/renderer/RenderTarget.cpp
 )
 
-# Tell your executable where to find the local include folder (for glad)
-target_include_directories(Penrose PRIVATE include vendor)
+# Tell the executable where to find realtime headers and vendor (stb)
+target_include_directories(Penrose PRIVATE realtime vendor)
 
 # 5. Link everything together
 target_link_libraries(Penrose PRIVATE
@@ -54,26 +54,29 @@ target_link_libraries(Penrose PRIVATE
     Eigen3::Eigen
 )
 
-# Copy the entire shaders folder (including textures) next to the executable
+# Copy shaders and resources next to the executable
 add_custom_command(TARGET Penrose POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-    "${CMAKE_CURRENT_SOURCE_DIR}/shaders"
+    "${CMAKE_CURRENT_SOURCE_DIR}/realtime/shaders"
     "$<TARGET_FILE_DIR:Penrose>/shaders"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/realtime/resources"
+    "$<TARGET_FILE_DIR:Penrose>/resources"
 )
 
-# 6. Setup the benchmark executable
+# 6. CPU physics validation / benchmark executable
 add_executable(benchmark_test
-    src/benchmarking/main_benchmark.cpp
-    src/benchmarking/orbital.cpp
-    src/benchmarking/null_geodesic.cpp
-    src/benchmarking/freefall.cpp
-    src/spacetime/CoordinateChart.cpp
-    src/spacetime/SchwarzschildMetric.cpp
-    src/dynamics/GeodesicDynamics.cpp
-    src/integration/RK4Integrator.cpp
-    src/simulation/TrajectorySolver.cpp
-    src/simulation/TerminationPolicy.cpp
+    physics/validation/main_benchmark.cpp
+    physics/validation/orbital.cpp
+    physics/validation/null_geodesic.cpp
+    physics/validation/freefall.cpp
+    physics/metrics/CoordinateChart.cpp
+    physics/metrics/SchwarzschildMetric.cpp
+    physics/geodesics/GeodesicDynamics.cpp
+    physics/integrators/RK4Integrator.cpp
+    physics/simulation/TrajectorySolver.cpp
+    physics/simulation/TerminationPolicy.cpp
 )
-target_include_directories(benchmark_test PRIVATE src)
+target_include_directories(benchmark_test PRIVATE physics)
 target_compile_definitions(benchmark_test PRIVATE PENROSE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 target_link_libraries(benchmark_test PRIVATE Eigen3::Eigen)

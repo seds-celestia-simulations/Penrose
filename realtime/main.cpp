@@ -7,17 +7,15 @@
 #include <vector>
 #include <random>
 
-// Physics headers
-
 // Rendering headers
-#include "render/Shader.h"
-#include "render/Window.h"
-#include "render/Camera.h"
-#include "render/Texture.h"
-#include "render/Renderer.h"
-#include "render/Particle.h"
-#include "render/FrameCapture.h"
-#include "render/RenderTarget.h"
+#include "renderer/Shader.h"
+#include "renderer/Window.h"
+#include "renderer/Camera.h"
+#include "renderer/Texture.h"
+#include "renderer/Renderer.h"
+#include "renderer/Particle.h"
+#include "renderer/FrameCapture.h"
+#include "renderer/RenderTarget.h"
 #ifdef _WIN32
 extern "C" {
     __declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
@@ -100,7 +98,7 @@ int main() {
     upscaleShader.use();
     upscaleShader.setInt("uLowResImage", 0);
 
-    unsigned int skyboxTexture = loadTexture("shaders/starfield_original.jpg");
+    unsigned int skyboxTexture = loadTexture("resources/starfield_original.jpg");
     if (skyboxTexture == 0) return -1; // Fail if image didn't load
 
     // 5. Setup the Full-Screen Quad Geometry

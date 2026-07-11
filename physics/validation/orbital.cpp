@@ -1,8 +1,8 @@
 #define _USE_MATH_DEFINES
 #include "orbital.h"
-#include "benchmark_io.h"
-#include "../spacetime/SchwarzschildMetric.h"
-#include "../dynamics/GeodesicDynamics.h"
+#include "../export/benchmark_io.h"
+#include "../metrics/SchwarzschildMetric.h"
+#include "../geodesics/GeodesicDynamics.h"
 #include "../simulation/TrajectorySolver.h"
 #include "../simulation/TerminationPolicy.h"
 #include <iostream>

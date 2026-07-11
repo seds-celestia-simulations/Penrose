@@ -34,22 +34,22 @@ Each capture session creates a new timestamped directory, so multiple captures w
 ## Technical Details
 
 ### Implementation Files
-1. **FrameCapture.h** - Main capture class that manages:
+1. **`realtime/renderer/FrameCapture.h`** - Main capture class that manages:
    - Toggle state for capture mode
    - Timestamped directory creation
    - Frame numbering and file path generation
 
-2. **Renderer.cpp (captureFrame method)** - Handles:
+2. **`realtime/renderer/Renderer.cpp` (captureFrame method)** - Handles:
    - Reading pixels from OpenGL framebuffer using `glReadPixels()`
    - Writing PPM format files
    - Vertical flip correction (OpenGL reads from bottom-left)
 
-3. **Window.cpp** - Input handling:
+3. **`realtime/renderer/Window.cpp`** - Input handling:
    - Detects 'P' key press
    - Toggles capture state via `toggleCapture()`
    - Uses static key state tracking to prevent multiple toggles per frame
 
-4. **main.cpp** - Integration:
+4. **`realtime/main.cpp`** - Integration:
    - Creates FrameCapture instance
    - Passes it to `processInput()` 
    - Calls `captureFrame()` after rendering each frame when capturing is enabled
@@ -77,6 +77,9 @@ For 800x600 resolution:
 - Each PPM frame ≈ 1.4 MB
 - 30 seconds of footage ≈ 1.26 GB (at 30 fps)
 - 60 seconds of footage ≈ 2.52 GB (at 30 fps)
+
+## Related Documentation
+- See [PPM_TO_VIDEO_README.md](PPM_TO_VIDEO_README.md) for converting captured frames to video (`realtime/visualization/ppm_to_video.py`).
 
 ## Future Enhancements
 Possible improvements:

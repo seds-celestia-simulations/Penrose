@@ -1,6 +1,6 @@
 #pragma once
-#include "../core/State.h"
-#include "../spacetime/Metric.h"
+#include "../state/State.h"
+#include "../metrics/Metric.h"
 
 namespace Simulation {
 

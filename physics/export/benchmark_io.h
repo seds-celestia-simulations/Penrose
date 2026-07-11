@@ -10,7 +10,7 @@
 #endif
 
 inline std::filesystem::path benchmark_data_dir() {
-    return std::filesystem::path(PENROSE_SOURCE_DIR) / "src" / "benchmarking" / "data";
+    return std::filesystem::path(PENROSE_SOURCE_DIR) / "physics" / "results" / "data";
 }
 
 inline std::ofstream open_benchmark_csv(const std::string& filename) {

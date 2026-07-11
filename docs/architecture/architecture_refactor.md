@@ -28,6 +28,8 @@ The migration philosophy was preservation-first. The goal was not to redesign th
 
 The key architectural achievement of the refactor is that the CPU geodesic stack now expresses the general structure of relativistic trajectory evolution. The live GPU renderer remains a separate shader-resident path and is the primary remaining alignment task.
 
+The repository is now organized as two independent pipelines at the directory level: the **CPU physics pipeline** under `physics/` (geodesic integration, validation, export, analysis) and the **GPU real-time pipeline** under `realtime/` (OpenGL rendering, shaders, interactive visualization). Code belongs in `shared/` only when genuinely used by both; currently nothing project-owned is shared between the pipelines.
+
 ## 2. Legacy vs Current Architecture
 
 ### Legacy Architecture
@@ -65,62 +67,72 @@ The main executable used the renderer and shaders. The CPU physics engine was va
 
 ### Current Post-Refactor Architecture
 
-The post-refactor branch reorganizes the CPU simulation framework into explicit modules:
+The post-refactor design extracts the CPU simulation framework into explicit modules, then places those modules in the **CPU physics pipeline** (`physics/`) while keeping the interactive OpenGL path in the **GPU real-time pipeline** (`realtime/`):
 
 ```text
-src/
-├── core/
+physics/                         # CPU scientific pipeline
+├── state/
 │   └── State.h
-├── spacetime/
+├── metrics/
 │   ├── Metric.h
 │   ├── SchwarzschildMetric.h/.cpp
 │   └── CoordinateChart.h/.cpp
-├── dynamics/
+├── geodesics/
 │   ├── DynamicsModel.h
 │   └── GeodesicDynamics.h/.cpp
-├── integration/
+├── integrators/
 │   └── RK4Integrator.h/.cpp
 ├── simulation/
 │   ├── TerminationPolicy.h/.cpp
 │   └── TrajectorySolver.h/.cpp
-├── benchmarking/
-└── render/
+├── validation/                  # Freefall, orbital, null geodesic drivers
+├── export/                      # CSV / data export helpers
+├── results/                     # Simulation outputs (e.g. data/*.csv)
+└── analysis/                    # Notebooks and plots
+
+realtime/                        # GPU real-time visualization pipeline
+├── main.cpp
+├── renderer/                    # OpenGL backend
+├── shaders/                     # GLSL (reduced.frag, quad.frag, …)
+├── resources/                   # Textures / skybox assets
+├── gpu/                         # GLAD loader
+└── visualization/               # Frame-capture utilities (e.g. ppm_to_video.py)
 ```
 
 Current post-refactor responsibilities:
 
-| Subsystem | Purpose | Primary Ownership |
-|---|---|---|
-| Core | Universal trajectory state | `State { X, U }` |
-| Spacetime | Geometry and coordinate mappings | `Metric`, `SchwarzschildMetric`, `CoordinateChart` |
-| Dynamics | Equations of motion | `DynamicsModel`, `GeodesicDynamics` |
-| Integration | Numerical stepping | `stepRK4` over generic derivative functions |
-| Simulation | Loop orchestration and termination | `TrajectorySolver`, `TerminationPolicy` |
-| Benchmarking | Scientific validation drivers | Freefall, orbital, null geodesic workflows |
-| Rendering | OpenGL display backend | Camera, shader, particles, frame capture |
-| Shaders | Live GPU visual algorithm | `reduced.frag` and alternate `quad.frag` |
+| Subsystem | Purpose | Primary Ownership | Pipeline |
+|---|---|---|---|
+| State | Universal trajectory state | `State { X, U }` | CPU (`physics/state/`) |
+| Metrics | Geometry and coordinate mappings | `Metric`, `SchwarzschildMetric`, `CoordinateChart` | CPU (`physics/metrics/`) |
+| Geodesics | Equations of motion | `DynamicsModel`, `GeodesicDynamics` | CPU (`physics/geodesics/`) |
+| Integrators | Numerical stepping | `stepRK4` over generic derivative functions | CPU (`physics/integrators/`) |
+| Simulation | Loop orchestration and termination | `TrajectorySolver`, `TerminationPolicy` | CPU (`physics/simulation/`) |
+| Validation | Scientific validation drivers | Freefall, orbital, null geodesic workflows | CPU (`physics/validation/`) |
+| Rendering | OpenGL display backend | Camera, shader, particles, frame capture | GPU (`realtime/renderer/`) |
+| Shaders | Live GPU visual algorithm | `reduced.frag` and alternate `quad.frag` | GPU (`realtime/shaders/`) |
 
 Post-refactor CPU dependency graph:
 
 ```mermaid
 flowchart TD
-    Bench[benchmarking/*] --> Solver[simulation/TrajectorySolver]
-    Solver --> Policy[simulation/TerminationPolicy]
-    Solver --> RK4[integration/RK4Integrator]
+    Bench[physics/validation/*] --> Solver[physics/simulation/TrajectorySolver]
+    Solver --> Policy[physics/simulation/TerminationPolicy]
+    Solver --> RK4[physics/integrators/RK4Integrator]
     RK4 --> Deriv[DynamicsModel derivative]
-    Deriv --> GeoDyn[dynamics/GeodesicDynamics]
-    GeoDyn --> Metric[spacetime/Metric]
-    Metric --> Schwarzschild[spacetime/SchwarzschildMetric]
-    Solver --> State[core/State]
+    Deriv --> GeoDyn[physics/geodesics/GeodesicDynamics]
+    GeoDyn --> Metric[physics/metrics/Metric]
+    Metric --> Schwarzschild[physics/metrics/SchwarzschildMetric]
+    Solver --> State[physics/state/State]
     GeoDyn --> State
 ```
 
-The live renderer remains OpenGL and shader driven:
+The live renderer remains OpenGL and shader driven (GPU pipeline):
 
 ```mermaid
 flowchart TD
-    Main[src/main.cpp] --> Render[src/render/*]
-    Main --> Shader[shaders/reduced.frag]
+    Main[realtime/main.cpp] --> Render[realtime/renderer/*]
+    Main --> Shader[realtime/shaders/reduced.frag]
     Render --> Uniforms[Camera and uniforms]
     Shader --> ReducedPhysics[Reduced Schwarzschild null orbit]
     Shader --> Color[Disk/skybox/black output]
@@ -130,16 +142,16 @@ flowchart TD
 
 | Legacy Concept | Legacy Location | Current Post-Refactor Location | Responsibility Change |
 |---|---|---|---|
-| Phase-space state | `physics.h::State` | `src/core/State.h` | State becomes shared payload |
-| Particle/light wrappers | `physics.h` | Still partly in `core/State.h`; render particle remains in `render/Particle.h` | Not fully purified yet |
-| Spherical/Cartesian Jacobians | `physics.cpp` | `src/spacetime/CoordinateChart.*` | Coordinate handling extracted |
-| Schwarzschild Christoffels | `find_acceleration` | `src/spacetime/SchwarzschildMetric.*` | Geometry owns connection coefficients |
-| Geodesic contraction | `find_acceleration` | `src/dynamics/GeodesicDynamics.*` | Universal dynamics separated from metric |
-| RK4 stepping | `Integrator` | `src/integration/RK4Integrator.*` | Integrator no longer knows gravity |
-| Horizon stop | acceleration guard and benchmark checks | `src/simulation/TerminationPolicy.*` | Boundary behavior moved above dynamics |
+| Phase-space state | `physics.h::State` | `physics/state/State.h` | State becomes shared payload |
+| Particle/light wrappers | `physics.h` | Still partly in `physics/state/State.h`; render particle remains in `realtime/renderer/Particle.h` | Not fully purified yet |
+| Spherical/Cartesian Jacobians | `physics.cpp` | `physics/metrics/CoordinateChart.*` | Coordinate handling extracted |
+| Schwarzschild Christoffels | `find_acceleration` | `physics/metrics/SchwarzschildMetric.*` | Geometry owns connection coefficients |
+| Geodesic contraction | `find_acceleration` | `physics/geodesics/GeodesicDynamics.*` | Universal dynamics separated from metric |
+| RK4 stepping | `Integrator` | `physics/integrators/RK4Integrator.*` | Integrator no longer knows gravity |
+| Horizon stop | acceleration guard and benchmark checks | `physics/simulation/TerminationPolicy.*` | Boundary behavior moved above dynamics |
 | Benchmark loops | each benchmark file | `TrajectorySolver::solve` | Loop ownership centralized |
 | Global constants | `src/Constants.h` | metric constructor/local benchmark constants | Parameters move toward explicit ownership |
-| Live shader physics | `shaders/reduced.frag` | still `shaders/reduced.frag` | Not yet unified with CPU framework |
+| Live shader physics | `shaders/reduced.frag` | `realtime/shaders/reduced.frag` | Not yet unified with CPU framework |
 | Historical docs | scattered/root docs | `docs/architecture/`, `docs/reports/`, `docs/frame_capture/` | Documentation reorganized |
 
 ## 3. Refactor Analysis
@@ -155,6 +167,7 @@ What changed:
 - Benchmark loops moved behind `TrajectorySolver`.
 - Horizon detection became a termination policy rather than an acceleration hack.
 - Root-level reports and scripts were reorganized into documentation and tooling folders.
+- The repository was later split into `physics/` (CPU scientific pipeline) and `realtime/` (GPU visualization pipeline) so the two backends are separated at the directory level.
 
 What intentionally remained unchanged:
 
@@ -185,7 +198,7 @@ This is the refactor's central architectural result.
 
 ## 4. Current Framework Architecture
 
-### Core
+### Core (`physics/state/`)
 
 Purpose: define the universal trajectory payload.
 
@@ -208,7 +221,7 @@ Extension points:
 - future typed states for null/timelike/charged trajectories,
 - removal of rendering-adjacent `Particle::color` leakage from core.
 
-### Spacetime
+### Spacetime (`physics/metrics/`)
 
 Purpose: own geometry.
 
@@ -235,7 +248,7 @@ Extension points:
 - `BoyerLindquistChart`,
 - chart domain/singularity policies.
 
-### Dynamics
+### Dynamics (`physics/geodesics/`)
 
 Purpose: own equations of motion.
 
@@ -266,7 +279,7 @@ Extension points:
 - wavefront dynamics,
 - non-geodesic test-particle models.
 
-### Integration
+### Integration (`physics/integrators/`)
 
 Purpose: own numerical stepping.
 
@@ -291,7 +304,7 @@ Extension points:
 - symplectic methods where appropriate,
 - backend-specific integrator variants.
 
-### Simulation
+### Simulation (`physics/simulation/`)
 
 Purpose: own trajectory-loop orchestration.
 
@@ -314,7 +327,7 @@ Extension points:
 - event detection,
 - post-step constraint projection.
 
-### Rendering
+### Rendering (`realtime/renderer/`, GPU pipeline)
 
 Purpose: own OpenGL execution and display support.
 
@@ -333,7 +346,7 @@ Key components:
 
 The rendering subsystem is an OpenGL backend, not yet a backend-neutral execution layer.
 
-### Benchmarking
+### Benchmarking (`physics/validation/`, CPU pipeline)
 
 Purpose: validate the CPU physics framework.
 
@@ -349,9 +362,9 @@ Benchmarks configure:
 
 The benchmark system is the main consumer of the post-refactor CPU framework.
 
-## 5. Physics Pipeline
+## 5. Physics Pipeline (CPU)
 
-CPU physics pipeline:
+CPU physics pipeline (`physics/`):
 
 ```mermaid
 flowchart TD
@@ -390,9 +403,9 @@ Ownership:
 | Loop and history | `TrajectorySolver` |
 | Stop condition | `TerminationPolicy` |
 
-## 6. Rendering Pipeline
+## 6. Rendering Pipeline (GPU)
 
-Live rendering pipeline:
+Live rendering pipeline (`realtime/`):
 
 ```mermaid
 flowchart TD
@@ -408,10 +421,10 @@ flowchart TD
 
 Frame flow:
 
-1. `main.cpp` initializes GLFW/GLAD and creates the window.
-2. `main.cpp` loads `shaders/quad.vert` and `shaders/reduced.frag`.
-3. `main.cpp` loads the skybox texture.
-4. `main.cpp` creates procedural accretion disk particles and uploads them through `Renderer`.
+1. `realtime/main.cpp` initializes GLFW/GLAD and creates the window.
+2. `realtime/main.cpp` loads `shaders/quad.vert` and `shaders/reduced.frag` (copied next to the executable from `realtime/shaders/` at build time).
+3. `realtime/main.cpp` loads the skybox texture from `resources/` (copied from `realtime/resources/`).
+4. `realtime/main.cpp` creates procedural accretion disk particles and uploads them through `Renderer`.
 5. Each frame, input updates the Euclidean camera.
 6. `Renderer::draw` sends camera position, inverse projection-view matrix, resolution, and flags to the shader.
 7. The full-screen triangle invokes the fragment shader for each pixel.
@@ -442,9 +455,9 @@ How shader architecture mirrors CPU concepts:
 
 The mirror is conceptual, not code-shared.
 
-## 7. Benchmarking Pipeline
+## 7. Benchmarking Pipeline (CPU validation)
 
-Benchmark execution:
+Benchmark execution (`physics/validation/`):
 
 ```mermaid
 flowchart TD
@@ -454,7 +467,7 @@ flowchart TD
     Freefall --> Framework[Metric/Dynamics/Solver]
     Orbital --> Framework
     Null --> Framework
-    Framework --> CSV[src/benchmarking/data/*.csv]
+    Framework --> CSV[physics/results/data/*.csv]
 ```
 
 Freefall benchmark:
@@ -660,7 +673,7 @@ This is the architecture of a scientific computing framework rather than a one-o
 
 Add:
 
-- `src/spacetime/KerrMetric.h/.cpp`,
+- `physics/metrics/KerrMetric.h/.cpp`,
 - likely `BoyerLindquistChart`,
 - Kerr-specific horizon termination.
 
@@ -732,7 +745,7 @@ Foundational work completed in the post-refactor branch:
 
 Architectural refinement still needed:
 
-- remove rendering-adjacent data from `core/State.h`,
+- remove rendering-adjacent data from `physics/state/State.h`,
 - formalize coordinate chart domains and singularity handling,
 - implement escape/composite termination policies,
 - align benchmark constants and shader constants,
@@ -757,37 +770,42 @@ The largest remaining architectural task is unifying the modular CPU framework a
 
 Start with:
 
-1. `docs/architecture/consolidated-architecture-reference.md` for architecture.
-2. `docs/PROJECT_DOCUMENTATION.md` for current main-branch project notes.
-3. `src/main.cpp` to see the live application loop.
-4. `shaders/reduced.frag` to see the active pixel physics.
-5. `src/physics_engine/physics.cpp` on `main` or `src/spacetime` plus `src/dynamics` on the post-refactor branch to understand CPU physics.
+1. `docs/architecture/architecture_refactor.md` for architecture (this document).
+2. `docs/reports/PROJECT_DOCUMENTATION.md` for current project notes.
+3. `realtime/main.cpp` to see the live GPU application loop.
+4. `realtime/shaders/reduced.frag` to see the active pixel physics.
+5. `physics/metrics/` plus `physics/geodesics/` to understand the CPU scientific pipeline.
 
 ### Where functionality belongs
 
 | Functionality | Correct Home |
 |---|---|
-| Universal state data | `src/core/` |
-| Metric tensors/connections | `src/spacetime/` |
-| Coordinate transforms/domains | `src/spacetime/` |
-| Equations of motion | `src/dynamics/` |
-| ODE stepping | `src/integration/` |
-| Trajectory loops and stop rules | `src/simulation/` |
-| Scientific validation | `src/benchmarking/` |
-| OpenGL utilities | `src/render/` |
-| Live GLSL raymarching | `shaders/` |
-| Frame/video tooling | `scripts/`, `docs/frame_capture/` |
+| Universal state data | `physics/state/` (CPU) |
+| Metric tensors/connections | `physics/metrics/` (CPU) |
+| Coordinate transforms/domains | `physics/metrics/` (CPU) |
+| Equations of motion | `physics/geodesics/` (CPU) |
+| ODE stepping | `physics/integrators/` (CPU) |
+| Trajectory loops and stop rules | `physics/simulation/` (CPU) |
+| Scientific validation | `physics/validation/` (CPU) |
+| Data export / CSV helpers | `physics/export/` (CPU) |
+| Simulation outputs | `physics/results/` (CPU) |
+| Analysis notebooks/plots | `physics/analysis/` (CPU) |
+| OpenGL utilities | `realtime/renderer/` (GPU) |
+| Live GLSL raymarching | `realtime/shaders/` (GPU) |
+| Textures / skybox assets | `realtime/resources/` (GPU) |
+| Frame/video tooling | `realtime/visualization/`, `docs/frame_capture/` |
+| Code used by both pipelines | `shared/` (only when genuinely shared) |
 | Historical reviews/specs | `docs/architecture/` |
 
 ### Where future implementations should be added
 
-- New spacetime: `src/spacetime/`.
-- New dynamics law: `src/dynamics/`.
-- New integrator: `src/integration/`.
-- New benchmark: `src/benchmarking/`.
-- New simulation stop condition: `src/simulation/`.
-- New render pass/backend support: `src/render/` or a future backend directory.
-- New shader experiment: `shaders/`, with matching documentation.
+- New spacetime: `physics/metrics/`.
+- New dynamics law: `physics/geodesics/`.
+- New integrator: `physics/integrators/`.
+- New benchmark: `physics/validation/`.
+- New simulation stop condition: `physics/simulation/`.
+- New render pass/backend support: `realtime/renderer/` or a future backend directory under `realtime/`.
+- New shader experiment: `realtime/shaders/`, with matching documentation.
 
 ## 14. Overall Architectural Summary
 
@@ -801,13 +819,15 @@ State -> Metric -> GeodesicDynamics -> RK4Integrator -> TrajectorySolver
 
 This structure is the correct foundation for future GR simulations because it maps software boundaries to mathematical boundaries.
 
-The live renderer has not yet completed the same transition. It remains a shader-resident Schwarzschild visualizer, using `reduced.frag` as the active physics/color pipeline. That is acceptable as a preserved working backend, but it should be understood as the next major alignment target.
+The live renderer has not yet completed the same transition. It remains a shader-resident Schwarzschild visualizer under `realtime/`, using `realtime/shaders/reduced.frag` as the active physics/color pipeline. That is acceptable as a preserved working backend, but it should be understood as the next major alignment target.
 
 The intended future is not to discard the shader renderer. It is to make the shader renderer one backend that executes the same conceptual architecture already established in the CPU framework.
 
 ## 15. Running Penrose Features
 
-For project-level build notes and dependency context, see [README.md](../../README.md) and [docs/reports/REPORT.md](../reports/REPORT.md). This section summarizes the commands needed to run Penrose locally.
+For complete install/run instructions, see **[docs/RUNNING.md](../RUNNING.md)**.
+
+The summary below is retained for convenience; prefer `docs/RUNNING.md` when following the full workflow.
 
 ### Prerequisites
 
@@ -847,7 +867,7 @@ cd build\Debug
 .\Penrose.exe
 ```
 
-Run from `build\Debug` (or the directory containing `Penrose.exe`) so the post-build step can find the copied `shaders/` folder next to the executable. This matches the workflow documented in [README.md](../../README.md) and [docs/reports/REPORT.md](../reports/REPORT.md).
+Run from `build\Debug` (or the directory containing `Penrose.exe`) so the post-build step can find the copied `shaders/` and `resources/` folders next to the executable. This matches the workflow documented in [README.md](../../README.md) and [docs/reports/REPORT.md](../reports/REPORT.md).
 
 ### Build the main visualizer on Linux/macOS
 
@@ -891,16 +911,8 @@ imagesequence/<timestamp>/frame_000000.ppm
 
 ### Convert PPM sequence to video
 
-On branches containing the script in `scripts/`:
-
 ```bash
-python scripts/ppm_to_video.py
-```
-
-On `main`, the script may still be at the repository root depending on checkout state:
-
-```bash
-python ppm_to_video.py
+python realtime/visualization/ppm_to_video.py
 ```
 
 Follow the interactive prompts to select the image sequence and frame rate.
@@ -932,6 +944,6 @@ On Linux/MacOS:
 ./build/benchmark_test
 ```
 
-The benchmark pipeline writes CSV outputs under `src/benchmarking/data/`.
+The benchmark pipeline writes CSV outputs under `physics/results/data/`.
 
 

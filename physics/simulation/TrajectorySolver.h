@@ -1,7 +1,7 @@
 #pragma once
-#include "../core/State.h"
-#include "../dynamics/DynamicsModel.h"
-#include "../integration/RK4Integrator.h"
+#include "../state/State.h"
+#include "../geodesics/DynamicsModel.h"
+#include "../integrators/RK4Integrator.h"
 #include "TerminationPolicy.h"
 #include <vector>
 

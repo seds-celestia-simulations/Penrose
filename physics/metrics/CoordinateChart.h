@@ -1,5 +1,5 @@
 #pragma once
-#include "../core/State.h"
+#include "../state/State.h"
 #include <Eigen/Dense>
 
 namespace CoordinateChart {
