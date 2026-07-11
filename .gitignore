@@ -4,3 +4,6 @@ vcpkg/
 
 *.exe
 *.csv 
+
+.vscode/
+.venv/
