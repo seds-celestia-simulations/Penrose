@@ -1,1 +1,9 @@
 build/ 
+build_win/
+vcpkg/
+
+*.exe
+*.csv 
+
+.vscode/
+.venv/
