@@ -2,8 +2,7 @@
 
 ### From a Schwarzschild Visualizer to a General Relativity Framework
 
-**Status:** Planned Architecture
-**Project:** Penrose
+
 **Goal:** Transform Penrose from a Schwarzschild-specific renderer into a modular computational framework for General Relativity, enabling future research in gravitational lensing, curved spacetime analysis, and Solar Gravitational Lensing (SGL).
 
 ---
@@ -61,9 +60,9 @@ Instead, new physics should be introduced by implementing interfaces rather than
 
 Physics and rendering solve different problems.
 
-The CPU framework focuses on scientific accuracy and extensibility.
+The Scientific engine focuses on scientific accuracy and extensibility.
 
-The GPU framework focuses on interactive visualization and rendering performance.
+The Realtime rendering engine focuses on interactive visualization and rendering performance.
 
 Neither should dictate the other's architecture.
 
@@ -71,9 +70,9 @@ Neither should dictate the other's architecture.
 
 ## 4. Validation Before Optimization
 
-Every new physical capability should first exist in the CPU implementation where it can be validated.
+Every new physical capability should first exist in the Scientific engine implementation where it can be validated.
 
-Only after validation should GPU implementations be developed where appropriate.
+Only after validation should Realtime rendering engine implementations be developed where appropriate.
 
 ---
 
@@ -91,23 +90,23 @@ The architecture simply generalizes the framework so Schwarzschild becomes one s
 
 Current implementation can be summarized as follows.
 
-## GPU
+## Realtime Rendering Engine
 
 - Real-time renderer
 - Reduced Schwarzschild metric
 - Hardcoded geodesic equations
 - Rendering and physics tightly coupled
 
-## CPU
+## Scientific Framework
 
 - Partial refactor
 - Beginning modularization
-- Independent from GPU
+- Independent from Realtime Rendering Engine
 - Intended for future scientific analysis
 
 ## Overall
 
-- CPU and GPU architectures diverged
+- Scientific Framework and Realtime Rendering Engine architectures diverged
 - Schwarzschild assumptions exist throughout the codebase
 - Framework currently represents one physical model rather than General Relativity as a whole
 
@@ -116,12 +115,12 @@ Current implementation can be summarized as follows.
 # Target Architecture
 
 ```
-                            Penrose  
+Penrose  
                                │
         ┌──────────────────────┴──────────────────────┐
         │                                             │
         │                                             │
- CPU General Relativity Framework          GPU Visualization Engine
+ Scientific General Relativity Framework          Realtime Rendering Engine
         │                                             │
         │                                             │
         └──────────────────────┬──────────────────────┘
@@ -129,7 +128,7 @@ Current implementation can be summarized as follows.
                   Shared General Relativity Concepts
 ```
 
-The CPU and GPU implementations evolve independently while sharing the same physical definitions.
+The Scientific Framework and Realtime rendering engine implementations evolve independently while sharing the same physical definitions.
 
 ---
 
@@ -152,13 +151,13 @@ Units
 Tensor Utilities
 ```
 
-Both CPU and GPU consume these definitions independently.
+Both Scientific Framework and Realtime Rendering Engine consume these definitions independently.
 
 ---
 
-# CPU Architecture
+# Scientific Framework Architecture
 
-The CPU implementation becomes the scientific reference implementation.
+The Scientific engine implementation becomes the scientific reference implementation.
 
 Its responsibilities include:
 
@@ -203,9 +202,9 @@ Rendering is optional.
 
 ---
 
-# GPU Architecture
+# Realtime Rendering Engine Architecture
 
-The GPU implementation focuses exclusively on visualization.
+The Realtime rendering engine implementation focuses exclusively on visualization.
 
 Responsibilities include:
 
@@ -215,7 +214,7 @@ Responsibilities include:
 - Visualization tools
 - Educational demonstrations
 
-The GPU is not responsible for scientific validation.
+The Realtime Rendering Engine is not responsible for scientific validation.
 
 ---
 
@@ -300,7 +299,7 @@ Future
 
 - Adaptive RK
 - Symplectic methods
-- GPU implementations
+- Realtime rendering engine implementations
 
 ---
 
@@ -388,10 +387,10 @@ Optimization should remain invisible to the higher-level architecture.
 
 The development of Penrose proceeds along two parallel tracks.
 
-The CPU and GPU implementations are intentionally developed independently during the early stages, allowing each to optimize for its own objectives.
+The Scientific Framework and Realtime rendering engine implementations are intentionally developed independently during the early stages, allowing each to optimize for its own objectives.
 
-- The CPU evolves into a scientific General Relativity framework.
-- The GPU evolves into a modular real-time visualization engine.
+- The Scientific Framework evolves into a scientific General Relativity framework.
+- The Realtime Rendering Engine evolves into a modular real-time visualization engine.
 
 Only after both architectures mature do they begin sharing common physics abstractions.
 
@@ -399,15 +398,15 @@ Only after both architectures mature do they begin sharing common physics abstra
 
 # Phase 1 — Independent Foundations
 
-## CPU Track
+## Scientific Framework
 
 Objective
 
-Establish the CPU implementation as the scientific reference.
+Establish the Scientific engine implementation as the scientific reference.
 
 Tasks
 
-- Complete CPU refactor
+- Complete Scientific Framework refactor
 - Remove renderer dependencies
 - Standardize simulation pipeline
 - Organize project structure
@@ -415,11 +414,11 @@ Tasks
 
 Deliverable
 
-A standalone CPU Schwarzschild simulation framework focused on correctness and extensibility.
+A standalone Scientific Framework Schwarzschild simulation framework focused on correctness and extensibility.
 
 ---
 
-## GPU Track
+## Realtime Rendering Engine
 
 Objective
 
@@ -435,7 +434,7 @@ Tasks
 
 Deliverable
 
-A standalone GPU rendering engine independent of the CPU implementation.
+A standalone Realtime Rendering Engine rendering engine independent of the Scientific engine implementation.
 
 ---
 
@@ -443,7 +442,7 @@ A standalone GPU rendering engine independent of the CPU implementation.
 
 Both tracks now begin evolving beyond Schwarzschild.
 
-## CPU Track
+## Scientific Framework
 
 Objective
 
@@ -463,7 +462,7 @@ Core simulation engine becomes independent of any specific spacetime.
 
 ---
 
-## GPU Track
+## Realtime Rendering Engine
 
 Objective
 
@@ -488,7 +487,7 @@ At this stage, both architectures have matured sufficiently to begin sharing com
 
 Objective
 
-Introduce a common General Relativity layer shared by both CPU and GPU.
+Introduce a common General Relativity layer shared by both Scientific Framework and Realtime Rendering Engine.
 
 Shared modules
 
@@ -509,7 +508,7 @@ Independent execution, shared physics.
 
 # Phase 4 — Scientific Capability
 
-## CPU Track
+## Scientific Framework
 
 Objective
 
@@ -531,7 +530,7 @@ Research-grade General Relativity analysis framework.
 
 ---
 
-## GPU Track
+## Realtime Rendering Engine
 
 Objective
 
@@ -565,9 +564,9 @@ Validation targets
 - Shapiro delay
 - Published null-geodesic benchmarks
 
-The CPU implementation serves as the scientific reference.
+The Scientific engine implementation serves as the scientific reference.
 
-GPU implementations are validated against CPU results where appropriate.
+Realtime rendering engine implementations are validated against Scientific Framework results where appropriate.
 
 Deliverable
 
@@ -581,7 +580,7 @@ Objective
 
 Demonstrate true modularity.
 
-CPU and GPU should both support additional metrics without modifications to their core architectures.
+Scientific Framework and Realtime Rendering Engine should both support additional metrics without modifications to their core architectures.
 
 Possible implementations
 
@@ -608,22 +607,21 @@ Potential modules include
 - Image reconstruction
 - Mission geometry
 
-Both CPU and GPU benefit from the shared General Relativity foundation while remaining independently optimized for their respective objectives.
+Both Scientific Framework and Realtime Rendering Engine benefit from the shared General Relativity foundation while remaining independently optimized for their respective objectives.
 
 ---
-
 
 # Long-Term Architecture
 
 ```
-                    Penrose
+Penrose
 
                         │
 
         ┌───────────────┴───────────────┐
         │                               │
         │                               │
- Scientific CPU Framework        GPU Visualization
+ Scientific Framework        Realtime Rendering Engine
         │                               │
         └───────────────┬───────────────┘
                         │
@@ -648,10 +646,9 @@ Both CPU and GPU benefit from the shared General Relativity foundation while rem
       └── Dataset Generation
 ```
 
-The CPU and GPU implementations remain architecturally independent while sharing a common language of General Relativity. This allows each to evolve according to its own requirements without sacrificing long-term consistency across the project.
+The Scientific Framework and Realtime rendering engine implementations remain architecturally independent while sharing a common language of General Relativity. This allows each to evolve according to its own requirements without sacrificing long-term consistency across the project.
 
 ---
-
 
 # End Goal
 
