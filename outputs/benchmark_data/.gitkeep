@@ -1,0 +1,2 @@
+# Generated benchmark CSVs, metrics, and validation reports land here.
+# Each benchmark_test run creates outputs/benchmark_data/<timestamp>/

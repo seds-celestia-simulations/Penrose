@@ -80,3 +80,86 @@ add_executable(benchmark_test
 target_include_directories(benchmark_test PRIVATE physics)
 target_compile_definitions(benchmark_test PRIVATE PENROSE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 target_link_libraries(benchmark_test PRIVATE Eigen3::Eigen)
+
+# 7. CPU visualization module (headless library + optional viewer)
+set(VISUALIZATION_SOURCES
+    visualization/Geometry/Coordinates.cpp
+    visualization/Geometry/Mesh.cpp
+    visualization/Trajectory/Trajectory.cpp
+    visualization/Trajectory/TrajectoryAdapter.cpp
+    visualization/Scene/Scene.cpp
+    visualization/Scene/SceneBuilder.cpp
+    visualization/Camera/Camera.cpp
+    visualization/Renderer/Framebuffer.cpp
+    visualization/Renderer/CPURasterizer.cpp
+    visualization/Presentation/PresentationProfile.cpp
+    visualization/Presentation/PresentationDefaults.cpp
+    visualization/Presentation/PostProcessor.cpp
+    visualization/Presentation/PresentationPipeline.cpp
+    visualization/IO/CsvTrajectoryLoader.cpp
+    visualization/IO/PpmWriter.cpp
+    visualization/IO/OutputPaths.cpp
+    visualization/IO/StarfieldBackground.cpp
+)
+
+add_library(visualization STATIC ${VISUALIZATION_SOURCES})
+target_include_directories(visualization
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/visualization
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_compile_definitions(visualization PRIVATE PENROSE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_link_libraries(visualization PUBLIC Eigen3::Eigen)
+
+add_executable(visualization_export visualization/Apps/HeadlessExportMain.cpp)
+target_compile_definitions(visualization_export PRIVATE PENROSE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_link_libraries(visualization_export PRIVATE visualization)
+
+add_executable(visualization_benchmark visualization/Apps/BenchmarkMain.cpp)
+target_link_libraries(visualization_benchmark PRIVATE visualization)
+
+add_executable(visualization_test
+    visualization/Tests/TestMain.cpp
+    visualization/Tests/TestCoordinates.cpp
+    visualization/Tests/TestTrajectory.cpp
+    visualization/Tests/TestCsv.cpp
+    visualization/Tests/TestCamera.cpp
+    visualization/Tests/TestRenderer.cpp
+)
+target_link_libraries(visualization_test PRIVATE visualization)
+
+set(PHYSICS_ENGINE_SOURCES
+    physics/metrics/CoordinateChart.cpp
+    physics/metrics/SchwarzschildMetric.cpp
+    physics/geodesics/GeodesicDynamics.cpp
+    physics/integrators/RK4Integrator.cpp
+    physics/simulation/TrajectorySolver.cpp
+    physics/simulation/TerminationPolicy.cpp
+)
+
+option(PENROSE_BUILD_VIEWER "Build interactive CPU visualization viewer" ON)
+if(PENROSE_BUILD_VIEWER)
+    add_executable(visualization_viewer
+        visualization/Apps/ViewerMain.cpp
+        visualization/Apps/DisplayBlit.cpp
+    )
+    target_include_directories(visualization_viewer PRIVATE realtime/gpu)
+    target_link_libraries(visualization_viewer PRIVATE visualization glfw glad)
+
+    add_executable(visualization_viewer_example
+        examples/interactive_viewer/main.cpp
+        visualization/Apps/DisplayBlit.cpp
+        ${PHYSICS_ENGINE_SOURCES}
+    )
+    target_include_directories(visualization_viewer_example
+        PRIVATE physics visualization realtime/gpu ${CMAKE_SOURCE_DIR})
+    target_link_libraries(visualization_viewer_example PRIVATE visualization glfw glad Eigen3::Eigen)
+endif()
+
+# 8. Direct integration example (Scientific Engine -> visualization)
+add_executable(visualization_example
+    examples/direct_integration/main.cpp
+    ${PHYSICS_ENGINE_SOURCES}
+)
+target_include_directories(visualization_example PRIVATE physics visualization ${CMAKE_SOURCE_DIR})
+target_compile_definitions(visualization_example PRIVATE PENROSE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_link_libraries(visualization_example PRIVATE visualization Eigen3::Eigen)
