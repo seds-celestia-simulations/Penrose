@@ -1,0 +1,2 @@
+# CPU renderer exports (PPM stills and frame sequences) land here.
+# Each export run creates outputs/rendered_frames/<timestamp>/

@@ -28,7 +28,7 @@ The migration philosophy was preservation-first. The goal was not to redesign th
 
 The key architectural achievement of the refactor is that the CPU geodesic stack now expresses the general structure of relativistic trajectory evolution. The live GPU renderer remains a separate shader-resident path and is the primary remaining alignment task.
 
-The repository is now organized as two independent pipelines at the directory level: the **CPU physics pipeline** under `physics/` (geodesic integration, validation, export, analysis) and the **GPU real-time pipeline** under `realtime/` (OpenGL rendering, shaders, interactive visualization). Code belongs in `shared/` only when genuinely used by both; currently nothing project-owned is shared between the pipelines.
+The repository is now organized as three independent pipelines at the directory level: the **CPU physics pipeline** under `physics/` (geodesic integration, validation, export, analysis), the **GPU real-time pipeline** under `realtime/` (OpenGL rendering, shaders, interactive visualization), and the **CPU visualization pipeline** under top-level `visualization/` (scene-based software rendering of immutable trajectories). Code belongs in `shared/` only when genuinely used by both; currently nothing project-owned is shared between the pipelines.
 
 ## 2. Legacy vs Current Architecture
 
@@ -97,6 +97,17 @@ realtime/                        # GPU real-time visualization pipeline
 ├── resources/                   # Textures / skybox assets
 ├── gpu/                         # GLAD loader
 └── visualization/               # Frame-capture utilities (e.g. ppm_to_video.py)
+
+visualization/                   # CPU software visualization pipeline (top-level)
+├── Trajectory/                  # Immutable adapters (State, optional CSV)
+├── Scene/                       # Scene graph + playback
+├── Camera/                      # Orbit / pan / zoom camera
+├── Geometry/                    # Local spherical→Cartesian, meshes
+├── Renderer/                    # Headless CPU rasterizer
+├── IO/                          # CSV replay + PPM export
+├── Apps/                        # Headless CLI + interactive viewer blit
+├── scientific/                  # Read-only benchmark CSV analysis + report figures
+└── Tests/                       # Unit/golden tests
 ```
 
 Current post-refactor responsibilities:
@@ -110,6 +121,7 @@ Current post-refactor responsibilities:
 | Simulation | Loop orchestration and termination | `TrajectorySolver`, `TerminationPolicy` | CPU (`physics/simulation/`) |
 | Validation | Scientific validation drivers | Freefall, orbital, null geodesic workflows | CPU (`physics/validation/`) |
 | Rendering | OpenGL display backend | Camera, shader, particles, frame capture | GPU (`realtime/renderer/`) |
+| CPU visualization | Scene-based software renderer of trajectories | Immutable adapters, scene/camera, CPU rasterizer, PPM export | CPU (`visualization/`) |
 | Shaders | Live GPU visual algorithm | `reduced.frag` and alternate `quad.frag` | GPU (`realtime/shaders/`) |
 
 Post-refactor CPU dependency graph:
@@ -137,6 +149,27 @@ flowchart TD
     Shader --> ReducedPhysics[Reduced Schwarzschild null orbit]
     Shader --> Color[Disk/skybox/black output]
 ```
+
+The CPU visualization pipeline (`visualization/`) is a separate consumer of trajectory data:
+
+```mermaid
+flowchart TD
+    Solver[physics/simulation/TrajectorySolver] --> States["const vector State"]
+    States --> Adapter[visualization/TrajectoryAdapter]
+    Csv[Optional benchmark CSV] --> Adapter
+    Adapter --> Scene[visualization/Scene]
+    Scene --> Cpu[visualization/CPURasterizer]
+    Cpu --> Ppm[PPM export]
+    Cpu --> Blit[GLFW display-only texture blit]
+```
+
+Boundary rules for `visualization/`:
+
+- The adapter includes only `physics/state/State.h` at its edge (no `Metric`, dynamics, RK4, or Christoffels).
+- Spherical-to-Cartesian conversion is local to `visualization/Geometry/` and does not call mutable `CoordinateChart::sph_to_cart`.
+- CSV import is optional; in-memory `std::span<const State>` is the primary API.
+- GLFW/OpenGL in `visualization/Apps/` blits the finished CPU framebuffer only; it does not render the scene on the GPU.
+- Rendering is deterministic for fixed inputs, supporting golden tests and reproducible frame export.
 
 ### Direct Legacy-to-Current Mapping
 
@@ -794,6 +827,8 @@ Start with:
 | Live GLSL raymarching | `realtime/shaders/` (GPU) |
 | Textures / skybox assets | `realtime/resources/` (GPU) |
 | Frame/video tooling | `realtime/visualization/`, `docs/frame_capture/` |
+| CPU trajectory visualization | `visualization/` (top-level) |
+| Benchmark validation analysis | `visualization/scientific/`, `docs/benchmark_validation.md` |
 | Code used by both pipelines | `shared/` (only when genuinely shared) |
 | Historical reviews/specs | `docs/architecture/` |
 
@@ -805,6 +840,8 @@ Start with:
 - New benchmark: `physics/validation/`.
 - New simulation stop condition: `physics/simulation/`.
 - New render pass/backend support: `realtime/renderer/` or a future backend directory under `realtime/`.
+- Trajectory/scene CPU visualization: `visualization/` (adapters, scene, rasterizer, export).
+- Benchmark CSV metrics, figures, and validation report: `visualization/scientific/` → `docs/benchmark_validation.md`, `docs/figures/benchmarks/`.
 - New shader experiment: `realtime/shaders/`, with matching documentation.
 
 ## 14. Overall Architectural Summary
@@ -946,4 +983,18 @@ On Linux/MacOS:
 
 The benchmark pipeline writes CSV outputs under `physics/results/data/`.
 
+### Benchmark validation (scientific analysis)
 
+Read-only Python tooling under `visualization/scientific/` analyzes benchmark CSVs and generates:
+
+- `docs/benchmark_validation.md` — measured metrics and source-level findings
+- `docs/figures/benchmarks/` — PNG + PDF figures for freefall, orbital, and null geodesic runs
+
+```bash
+./build/benchmark_test   # tee build/benchmark_run.log for appendix parsing
+python -m visualization.scientific.analyze_benchmarks
+python -m visualization.scientific.plot_benchmarks
+python -m visualization.scientific.generate_report
+```
+
+This tooling does not modify `physics/` sources; it only reads CSV outputs and benchmark console logs.

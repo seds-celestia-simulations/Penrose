@@ -5,5 +5,12 @@ vcpkg/
 *.exe
 *.csv 
 
+outputs/benchmark_data/**/*
+outputs/validation_figures/**/*
+outputs/rendered_frames/**/*
+!outputs/benchmark_data/.gitkeep
+!outputs/validation_figures/.gitkeep
+!outputs/rendered_frames/.gitkeep
+
 .vscode/
 .venv/
