@@ -2,6 +2,9 @@ build/
 build_win/
 vcpkg/
 
+imagesequence/
+
+
 *.exe
 *.csv 
 
