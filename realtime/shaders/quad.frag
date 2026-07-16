@@ -162,11 +162,11 @@ ray create_ray_derivative(ray R){
 
 ray integrate(ray R, float dL){
     ray k1 = create_ray_derivative(R);    
-    ray k2 = create_ray_derivative(ray(R.x + (k1.x * (step_size/2.0)),R.u + (k1.u * (step_size/2.0))));
-    ray k3 = create_ray_derivative(ray(R.x + (k2.x * (step_size/2.0)),R.u + (k2.u * (step_size/2.0))));
-    ray k4 = create_ray_derivative(ray(R.x + (k3.x * step_size),R.u + (k3.u * step_size)));
+    ray k2 = create_ray_derivative(ray(R.x + (k1.x * (dL/2.0)),R.u + (k1.u * (dL/2.0))));
+    ray k3 = create_ray_derivative(ray(R.x + (k2.x * (dL/2.0)),R.u + (k2.u * (dL/2.0))));
+    ray k4 = create_ray_derivative(ray(R.x + (k3.x * dL),R.u + (k3.u * dL)));
 
-    ray s_final = ray(R.x + (step_size/6.0 )*(k1.x + 2.0*k2.x + 2.0*k3.x + k4.x),R.u + (step_size/6.0 )*(k1.u + 2.0*k2.u + 2.0*k3.u + k4.u));
+    ray s_final = ray(R.x + (dL/6.0 )*(k1.x + 2.0*k2.x + 2.0*k3.x + k4.x),R.u + (dL/6.0 )*(k1.u + 2.0*k2.u + 2.0*k3.u + k4.u));
 
     return s_final;    
 }
