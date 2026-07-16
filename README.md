@@ -8,12 +8,11 @@ Originally developed for Schwarzschild black holes, the long-term goal is a gene
 
 ---
 
-
 ## Physics
 
 Penrose evolves **timelike** and **null geodesics** by numerically integrating the geodesic equation
 
-$$\\frac{d^2x^\mu}{d\tau^2}+\Gamma^\mu_{\alpha\beta}\frac{dx^\alpha}{d\tau}\frac{dx^\beta}{d\tau}=0\$$
+$$\frac{d^2x^\mu}{d\tau^2}+\Gamma^\mu_{\alpha\beta}\frac{dx^\alpha}{d\tau}\frac{dx^\beta}{d\tau}=0\$$
 
 using a modular spacetime abstraction.
 
