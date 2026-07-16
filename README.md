@@ -8,20 +8,6 @@ Originally developed for Schwarzschild black holes, the long-term goal is a gene
 
 ---
 
-# Gallery
-
-## Null Geodesic Evolution
-
-<img width="1559" height="864" alt="image" src="https://github.com/user-attachments/assets/eefc82a2-d28a-4da2-b755-80b33b23bd14" />
-
----
-
-## Real-Time Schwarzschild Rendering
-
-<img width="975" height="575" alt="penrose" src="https://github.com/user-attachments/assets/42979505-8273-47f0-a5e5-b9e5b6aa6c3e" />
-
----
-
 
 ## Physics
 
@@ -41,24 +27,22 @@ The framework separates:
 
 allowing new metrics to be introduced without modifying the core simulation pipeline.
 
-Current implementation includes:
+---
 
-- Schwarzschild spacetime
-- Analytical Christoffel symbols
-- Timelike geodesics
-- Null geodesics
-- Fourth-order Runge–Kutta integration
-- Scientific validation against known solutions
+# Gallery
 
-Future extensions include:
+## Real-Time Schwarzschild Rendering
 
-- Solar Gravitational Lensing (SGL)
-- Kerr spacetime
-- Reissner–Nordström
-- FLRW cosmology
-- User-defined analytic and numerical metrics
+<img width="1920" height="675" alt="image" src="https://github.com/user-attachments/assets/09155160-bac0-4b90-a0d9-e39732910ce2" />
+
+
+## Null Geodesic Evolution
+
+<img width="1559" height="864" alt="image" src="https://github.com/user-attachments/assets/eefc82a2-d28a-4da2-b755-80b33b23bd14" />
+
 
 ---
+
 
 # Example Results
 
@@ -98,7 +82,7 @@ Outputs include
 
 ## Scientific Computing
 
-- Reference CPU physics implementation
+- Reference scientific implementation
 - Scientific benchmark suite
 - Automatic validation metrics
 - CSV trajectory export
@@ -112,7 +96,7 @@ Outputs include
 - Scientific trajectory renderer
 - Interactive orbit viewer
 - Multiple simultaneous trajectories
-- Presentation-quality rendering
+- Presentation-oriented rendering
 - Headless image export
 - PPM animation sequences
 
@@ -191,6 +175,37 @@ The GPU renderer is optimized for interactive exploration.
 
 ---
 
+# Repository Structure
+
+```
+penrose/
+├── physics/              # CPU reference solver
+│   ├── metrics/          # Spacetime geometry (Schwarzschild)
+│   ├── geodesics/        # Equations of motion
+│   ├── integrators/      # RK4 integration
+│   ├── simulation/       # Trajectory solver
+│   ├── validation/       # Benchmark suite
+│   └── analysis/         # Python notebooks & plots
+├── visualization/        # CPU trajectory renderer
+│   ├── Apps/             # Viewer, export, benchmark binaries
+│   ├── Renderer/         # Rasterization pipeline
+│   └── Scene/            # Scene composition
+├── realtime/             # GPU interactive renderer
+│   ├── renderer/         # OpenGL engine
+│   ├── shaders/          # GLSL geodesic marching
+│   └── resources/        # Textures & assets
+├── shared/               # Common math & utilities
+├── docs/                 # Architecture & usage guides
+├── outputs/              # Generated benchmarks & renders
+├── examples/             # Example workflows
+├── vendor/               # Eigen, stb (header-only)
+├── CMakeLists.txt
+├── vcpkg.json
+└── requirements.txt      # Python analysis deps
+```
+
+---
+
 # Quick Start
 
 ## Build
@@ -209,15 +224,13 @@ cmake --build build
 
 ## Run
 
-**From build/**
-
 | Goal | Command |
 |-------|---------|
-| GPU renderer | `./Penrose` |
-| Generate benchmarks | `./benchmark_test` |
-| Interactive CPU viewer | `./visualization_viewer --csv outputs/.../orbital.csv` |
-| Export still | `./visualization_export --csv outputs/.../orbital.csv` |
-| Run visualization tests | `./visualization_test` |
+| GPU renderer | `./build/Penrose` |
+| Generate benchmarks | `./build/benchmark_test` |
+| Interactive CPU viewer | `./build/visualization_viewer --csv outputs/.../orbital.csv` |
+| Export still | `./build/visualization_export --csv outputs/.../orbital.csv` |
+| Run visualization tests | `./build/visualization_test` |
 
 Complete walkthrough:
 
