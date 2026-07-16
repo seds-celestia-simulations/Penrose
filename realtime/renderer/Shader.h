@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <filesystem>
 
 class Shader {
 public:
@@ -32,8 +33,10 @@ public:
             fragmentCode = fShaderStream.str();
         }
         catch (std::ifstream::failure& e) {
-            std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ" << std::endl;
-        }
+    // std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ" << std::endl;
+    // std::cerr << "Tried to open vertex path: " << vertexPath << std::endl;
+    // std::cerr << "Tried to open fragment path: " << fragmentPath << std::endl;
+}
 
         const char* vShaderCode = vertexCode.c_str();
         const char * fShaderCode = fragmentCode.c_str();

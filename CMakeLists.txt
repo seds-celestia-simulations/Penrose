@@ -41,6 +41,9 @@ add_executable(Penrose
     realtime/renderer/Renderer.cpp
     realtime/renderer/ParticleBuffer.cpp
     realtime/renderer/RenderTarget.cpp
+    realtime/renderer/LutBaker.cpp
+    realtime/renderer/AccretionDisk.cpp
+    realtime/renderer/Engine.cpp
 )
 
 # Tell the executable where to find realtime headers and vendor (stb)
