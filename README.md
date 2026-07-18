@@ -43,7 +43,7 @@ allowing new metrics to be introduced without modifying the core simulation pipe
 ---
 
 
-# Example Results
+# Capabilities
 
 Penrose contains a complete scientific benchmarking pipeline.
 
