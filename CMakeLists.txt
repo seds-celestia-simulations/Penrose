@@ -29,32 +29,38 @@ FetchContent_MakeAvailable(glfw)
 find_package(glm CONFIG REQUIRED)
 find_package(Eigen3 CONFIG REQUIRED)
 
-# 3. Compile GLAD manually from the realtime GPU headers
+# 3. Shared cross-module definitions (header-only interface library)
+add_library(penrose_shared INTERFACE)
+target_include_directories(penrose_shared INTERFACE shared/)
+target_link_libraries(penrose_shared INTERFACE Eigen3::Eigen)
+
+# 4. Compile GLAD manually from the realtime GPU headers
 add_library(glad realtime/gpu/glad/glad.c)
 target_include_directories(glad PUBLIC realtime/gpu)
 
-# 4. GPU real-time visualization executable
+# 5. GPU real-time visualization executable
 add_executable(Penrose 
     realtime/main.cpp
-    realtime/renderer/Texture.cpp
-    realtime/renderer/Window.cpp
-    realtime/renderer/Renderer.cpp
-    realtime/renderer/ParticleBuffer.cpp
-    realtime/renderer/RenderTarget.cpp
-    realtime/renderer/LutBaker.cpp
-    realtime/renderer/AccretionDisk.cpp
-    realtime/renderer/Engine.cpp
+    realtime/core/Texture.cpp
+    realtime/core/Window.cpp
+    realtime/core/Framebuffer.cpp
+    realtime/core/Engine.cpp
+    realtime/render/Renderer.cpp
+    realtime/scene/ParticleBuffer.cpp
+    realtime/spacetime/LutBaker.cpp
+    realtime/spacetime/AccretionDisk.cpp
 )
 
 # Tell the executable where to find realtime headers and vendor (stb)
 target_include_directories(Penrose PRIVATE realtime vendor)
 
-# 5. Link everything together
+# 6. Link everything together
 target_link_libraries(Penrose PRIVATE
     glfw
     glad
     glm::glm
     Eigen3::Eigen
+    penrose_shared
 )
 
 # Copy shaders and resources next to the executable
@@ -67,7 +73,7 @@ add_custom_command(TARGET Penrose POST_BUILD
     "$<TARGET_FILE_DIR:Penrose>/resources"
 )
 
-# 6. CPU physics validation / benchmark executable
+# 7. CPU physics validation / benchmark executable
 add_executable(benchmark_test
     physics/validation/main_benchmark.cpp
     physics/validation/orbital.cpp
@@ -82,9 +88,9 @@ add_executable(benchmark_test
 )
 target_include_directories(benchmark_test PRIVATE physics)
 target_compile_definitions(benchmark_test PRIVATE PENROSE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
-target_link_libraries(benchmark_test PRIVATE Eigen3::Eigen)
+target_link_libraries(benchmark_test PRIVATE Eigen3::Eigen penrose_shared)
 
-# 7. CPU visualization module (headless library + optional viewer)
+# 8. CPU visualization module (headless library + optional viewer)
 set(VISUALIZATION_SOURCES
     visualization/Geometry/Coordinates.cpp
     visualization/Geometry/Mesh.cpp
@@ -111,7 +117,7 @@ target_include_directories(visualization
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 )
 target_compile_definitions(visualization PRIVATE PENROSE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
-target_link_libraries(visualization PUBLIC Eigen3::Eigen)
+target_link_libraries(visualization PUBLIC Eigen3::Eigen penrose_shared)
 
 add_executable(visualization_export visualization/Apps/HeadlessExportMain.cpp)
 target_compile_definitions(visualization_export PRIVATE PENROSE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
@@ -155,14 +161,14 @@ if(PENROSE_BUILD_VIEWER)
     )
     target_include_directories(visualization_viewer_example
         PRIVATE physics visualization realtime/gpu ${CMAKE_SOURCE_DIR})
-    target_link_libraries(visualization_viewer_example PRIVATE visualization glfw glad Eigen3::Eigen)
+    target_link_libraries(visualization_viewer_example PRIVATE visualization glfw glad Eigen3::Eigen penrose_shared)
 endif()
 
-# 8. Direct integration example (Scientific Engine -> visualization)
+# 9. Direct integration example (Scientific Engine -> visualization)
 add_executable(visualization_example
     examples/direct_integration/main.cpp
     ${PHYSICS_ENGINE_SOURCES}
 )
 target_include_directories(visualization_example PRIVATE physics visualization ${CMAKE_SOURCE_DIR})
 target_compile_definitions(visualization_example PRIVATE PENROSE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
-target_link_libraries(visualization_example PRIVATE visualization Eigen3::Eigen)
+target_link_libraries(visualization_example PRIVATE visualization Eigen3::Eigen penrose_shared)

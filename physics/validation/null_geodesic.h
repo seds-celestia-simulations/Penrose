@@ -1,5 +1,5 @@
 #pragma once
-#include "../state/State.h"
+#include <state/GeodesicState.h>
 
 // Null geodesic benchmark (Light Rays).
 // Supply r0, vr, vph and dt freely.

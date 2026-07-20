@@ -1,7 +1,7 @@
 #include "TrajectoryAdapter.h"
 
 #include "../Geometry/Coordinates.h"
-#include "../../physics/state/State.h"
+#include <state/GeodesicState.h>
 
 namespace viz {
 

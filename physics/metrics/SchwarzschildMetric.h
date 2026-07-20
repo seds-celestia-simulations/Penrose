@@ -1,5 +1,5 @@
 #pragma once
-#include "Metric.h"
+#include <spacetime/Metric.h>
 
 namespace Spacetime {
 

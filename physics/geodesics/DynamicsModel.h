@@ -1,5 +1,5 @@
 #pragma once
-#include "../state/State.h"
+#include <state/GeodesicState.h>
 
 namespace Dynamics {
 

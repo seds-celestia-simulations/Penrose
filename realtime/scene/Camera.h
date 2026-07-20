@@ -4,7 +4,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-// Defines several possible options for camera movement
 enum Camera_Movement {
     FORWARD,
     BACKWARD,
@@ -15,22 +14,18 @@ enum Camera_Movement {
 
 class Camera {
 public:
-    // Camera Attributes
     glm::vec3 Position;
     glm::vec3 Front;
     glm::vec3 Up;
     glm::vec3 Right;
     glm::vec3 WorldUp;
     
-    // Euler Angles
     float Yaw;
     float Pitch;
     
-    // Camera options
     float MovementSpeed;
     float RotationSpeed;
 
-    // Constructor
     Camera(glm::vec3 position = glm::vec3(0.0f, -8.0f, 4.0f)) {
         Position = position;
         WorldUp = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -41,12 +36,10 @@ public:
         updateCameraVectors();
     }
 
-    // Returns the view matrix calculated using Euler Angles and the LookAt Matrix
     glm::mat4 GetViewMatrix() {
         return glm::lookAt(Position, Position + Front, Up);
     }
 
-    // Processes input received from a keyboard-like input system (WASD)
     void ProcessKeyboard(Camera_Movement direction, float deltaTime) {
         float velocity = MovementSpeed * deltaTime;
         if (direction == FORWARD)
@@ -59,7 +52,6 @@ public:
             Position += Right * velocity;
     }
 
-    // Processes input received from mouse keys
     void ProcessMouseMovement(float xoffset, float yoffset)
 {
     const float mouseSensitivity = 0.08f;
@@ -74,7 +66,6 @@ public:
 }
 
 private:
-    // Calculates the front vector from the Camera's (updated) Euler Angles
     void updateCameraVectors() {
         glm::vec3 front;
         front.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
@@ -82,7 +73,6 @@ private:
         front.z = sin(glm::radians(Yaw)) * cos(glm::radians(Pitch));
         Front = glm::normalize(front);
         
-        // Also re-calculate the Right and Up vector
         Right = glm::normalize(glm::cross(Front, WorldUp)); 
         Up    = glm::normalize(glm::cross(Right, Front));
     }

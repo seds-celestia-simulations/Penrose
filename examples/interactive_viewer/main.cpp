@@ -9,7 +9,7 @@
 #include "metrics/SchwarzschildMetric.h"
 #include "simulation/TerminationPolicy.h"
 #include "simulation/TrajectorySolver.h"
-#include "state/State.h"
+#include <state/GeodesicState.h>
 
 #include "Apps/DisplayBlit.h"
 #include "Camera/Camera.h"

@@ -1,6 +1,6 @@
 #pragma once
 #include "DynamicsModel.h"
-#include "../metrics/Metric.h"
+#include <spacetime/Metric.h>
 
 namespace Dynamics {
 

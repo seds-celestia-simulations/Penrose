@@ -1,6 +1,6 @@
 #include "TestDeclarations.h"
 #include "../Trajectory/TrajectoryAdapter.h"
-#include "../../physics/state/State.h"
+#include <state/GeodesicState.h>
 
 namespace viz::test {
 

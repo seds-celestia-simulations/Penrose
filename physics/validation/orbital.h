@@ -1,5 +1,5 @@
 #pragma once
-#include "../state/State.h"
+#include <state/GeodesicState.h>
 
 // General geodesic benchmark.
 // Supply any r0, vr, vph and dt freely.
