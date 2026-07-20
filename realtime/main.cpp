@@ -1,4 +1,4 @@
-#include "renderer/Engine.h"
+#include "core/Engine.h"
 #include <cstdlib>
 
 #ifdef _WIN32
@@ -10,12 +10,10 @@ extern "C" {
 
 int main() {
 #ifndef _WIN32
-    // Force NVIDIA GPU usage on Linux systems with Prime offload
     setenv("__NV_PRIME_RENDER_OFFLOAD", "1", 1);
     setenv("__GLX_VENDOR_LIBRARY_NAME", "nvidia", 1);
 #endif
 
-    // Instantiate and run the entire visualization engine
     Engine app(1920, 1080, "Penrose: RK4 Black Hole");
     app.run();
 

@@ -1,5 +1,5 @@
 #pragma once
-#include "../state/State.h"
+#include <state/GeodesicState.h>
 #include "../geodesics/DynamicsModel.h"
 #include "../integrators/RK4Integrator.h"
 #include "TerminationPolicy.h"

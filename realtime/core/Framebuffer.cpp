@@ -1,20 +1,19 @@
-#include "RenderTarget.h"
+#include "core/Framebuffer.h"
 #include <iostream>
 
-RenderTarget::RenderTarget(unsigned int w, unsigned int h)
+Framebuffer::Framebuffer(unsigned int w, unsigned int h)
     : width(w), height(h)
 {
     glGenFramebuffers(1, &fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-    // Empty texture: the black-hole shader will write pixels into this.
     glGenTextures(1, &colorTexture);
     glBindTexture(GL_TEXTURE_2D, colorTexture);
 
     glTexImage2D(
         GL_TEXTURE_2D,
         0,
-        GL_RGB16F,      // good for bright disk / HDR-ish values
+        GL_RGB16F,
         width,
         height,
         0,
@@ -23,7 +22,6 @@ RenderTarget::RenderTarget(unsigned int w, unsigned int h)
         nullptr
     );
 
-    // This is the upscaling filter.
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -39,25 +37,25 @@ RenderTarget::RenderTarget(unsigned int w, unsigned int h)
     );
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        std::cerr << "RenderTarget framebuffer incomplete\n";
+        std::cerr << "Framebuffer incomplete\n";
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-RenderTarget::~RenderTarget()
+Framebuffer::~Framebuffer()
 {
     if (colorTexture) glDeleteTextures(1, &colorTexture);
     if (fbo) glDeleteFramebuffers(1, &fbo);
 }
 
-void RenderTarget::bind() const
+void Framebuffer::bind() const
 {
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glViewport(0, 0, width, height);
 }
 
-void RenderTarget::unbind() const
+void Framebuffer::unbind() const
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
