@@ -27,8 +27,8 @@ float hash_unit(std::uint32_t seed, int i) {
 }
 
 
-void paint_absorbing_black_hole(Framebuffer& framebuffer, const Camera& camera, float rs,
-                                const SchwarzschildHorizonScreen& horizon) {
+void paint_absorbing_region(Framebuffer& framebuffer, const Camera& camera, float horizon_radius,
+                            const HorizonScreen& horizon) {
     const float cx = horizon.center_x_px;
     const float cy = horizon.center_y_px;
     const float r = horizon.radius_px;
@@ -54,7 +54,7 @@ void paint_absorbing_black_hole(Framebuffer& framebuffer, const Camera& camera, 
             const float u = x_px / static_cast<float>(w);
             const float v = y_px / static_cast<float>(h);
             const float horizon_depth =
-                schwarzschild_horizon_clip_depth(camera, u, v, aspect, rs, mvp);
+                central_horizon_clip_depth(camera, u, v, aspect, horizon_radius, mvp);
             if (!std::isfinite(horizon_depth)) {
                 continue;
             }
@@ -67,8 +67,8 @@ void paint_absorbing_black_hole(Framebuffer& framebuffer, const Camera& camera, 
     }
 }
 
-bool outside_schwarzschild_radius(const Vec3& position, float rs) {
-    return position.length_squared() >= rs * rs;
+bool outside_horizon_radius(const Vec3& position, float horizon_radius) {
+    return position.length_squared() >= horizon_radius * horizon_radius;
 }
 
 Color4 shade_color(const Color4& base, float ndotl, float glow) {
@@ -107,8 +107,8 @@ Color4 trajectory_segment_color(const Trajectory& traj, const TrajectoryStyle& s
         base = lerp_color(style.gradient_start, style.gradient_end, gradient_t);
     }
     const float fade = along * along;
-    const float rgb_scale = 0.38f + 0.62f * fade;
-    const float alpha_scale = 0.10f + 0.90f * fade;
+    const float rgb_scale = style.trail_rgb_min + (1.0f - style.trail_rgb_min) * fade;
+    const float alpha_scale = style.trail_alpha_min + (1.0f - style.trail_alpha_min) * fade;
     return scale_color_rgb(base, rgb_scale, alpha_scale);
 }
 
@@ -118,7 +118,7 @@ void CPURasterizer::render(Scene& scene, const Camera& camera, Framebuffer& fram
                            const RenderOptions& options) const {
     const float aspect = static_cast<float>(framebuffer.width()) / static_cast<float>(framebuffer.height());
     const Mat4 mvp = camera.view_projection(aspect);
-    const float rs = scene.settings().schwarzschild_radius;
+    const float rs = scene.settings().horizon_radius;
 
     framebuffer.clear(scene.settings().background);
 
@@ -131,12 +131,12 @@ void CPURasterizer::render(Scene& scene, const Camera& camera, Framebuffer& fram
         }
     }
 
-    draw_trajectories(scene, camera, mvp, framebuffer, rs);
+    draw_trajectories(scene, camera, mvp, framebuffer, rs, options);
 
     if (scene.settings().show_event_horizon) {
-        const SchwarzschildHorizonScreen horizon =
-            project_schwarzschild_horizon(camera, rs, framebuffer.width(), framebuffer.height());
-        paint_absorbing_black_hole(framebuffer, camera, rs, horizon);
+        const HorizonScreen horizon =
+            project_central_horizon(camera, rs, framebuffer.width(), framebuffer.height());
+        paint_absorbing_region(framebuffer, camera, rs, horizon);
     }
 }
 
@@ -404,7 +404,8 @@ void CPURasterizer::draw_glow_disc(const Vec3& center, float radius, const Mat4&
 }
 
 void CPURasterizer::draw_trajectories(Scene& scene, const Camera& camera, const Mat4& mvp,
-                                      Framebuffer& framebuffer, float schwarzschild_radius) const {
+                                      Framebuffer& framebuffer, float horizon_radius,
+                                      const RenderOptions& options) const {
     (void)camera;
     const double playback_time = scene.playback().time;
 
@@ -417,18 +418,18 @@ void CPURasterizer::draw_trajectories(Scene& scene, const Camera& camera, const 
         const TrajectoryStyle& style = traj.style();
 
         if (style.show_trail && end_idx > 0) {
-            const std::size_t stride =
-                end_idx > 1200 ? (end_idx / 1200 + 1) : 1;
-            const std::size_t full_detail_from =
-                end_idx > 200 ? end_idx - 200 : 0;
+            const std::size_t max_dense = std::max<std::size_t>(1, options.trail_max_dense_segments);
+            const std::size_t stride = end_idx > max_dense ? (end_idx / max_dense + 1) : 1;
+            const std::size_t tail = options.trail_full_detail_tail;
+            const std::size_t full_detail_from = end_idx > tail ? end_idx - tail : 0;
             for (std::size_t i = 1; i <= end_idx; ++i) {
                 if (stride > 1 && i < full_detail_from && (i % stride) != 0) {
                     continue;
                 }
                 const Vec3& a = traj.samples()[i - 1].position;
                 const Vec3& b = traj.samples()[i].position;
-                if (!outside_schwarzschild_radius(a, schwarzschild_radius) ||
-                    !outside_schwarzschild_radius(b, schwarzschild_radius)) {
+                if (!outside_horizon_radius(a, horizon_radius) ||
+                    !outside_horizon_radius(b, horizon_radius)) {
                     continue;
                 }
                 const Color4 seg_color = trajectory_segment_color(traj, style, i, end_idx);
@@ -438,7 +439,7 @@ void CPURasterizer::draw_trajectories(Scene& scene, const Camera& camera, const 
 
         if (style.show_marker) {
             const Vec3 marker_pos = traj.samples()[end_idx].position;
-            if (!outside_schwarzschild_radius(marker_pos, schwarzschild_radius)) {
+            if (!outside_horizon_radius(marker_pos, horizon_radius)) {
                 continue;
             }
             Color4 head_color = style.color;
@@ -449,9 +450,10 @@ void CPURasterizer::draw_trajectories(Scene& scene, const Camera& camera, const 
                     span > 1e-12 ? static_cast<float>((param - traj.min_parameter()) / span) : 1.0f;
                 head_color = lerp_color(style.gradient_start, style.gradient_end, gradient_t);
             }
-            Color4 marker_color = scale_color_rgb(head_color, 1.27f, 1.0f);
+            Color4 marker_color = scale_color_rgb(head_color, style.marker_brightness, 1.0f);
             marker_color.a = style.glow_color.a;
-            draw_glow_disc(marker_pos, style.marker_radius * 2.5f, mvp, framebuffer, marker_color);
+            draw_glow_disc(marker_pos, style.marker_radius * style.marker_glow_scale, mvp, framebuffer,
+                           marker_color);
         }
     }
 }

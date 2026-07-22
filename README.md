@@ -186,7 +186,7 @@ penrose/
 │   ├── validation/       # Benchmark suite
 │   └── analysis/         # Python notebooks & plots
 ├── visualization/        # CPU trajectory renderer
-│   ├── Apps/             # Viewer, export, benchmark binaries
+│   ├── Apps/             # ViewerApp, DisplayBlit (internal)
 │   ├── Renderer/         # Rasterization pipeline
 │   └── Scene/            # Scene composition
 ├── realtime/             # GPU interactive renderer
@@ -196,7 +196,7 @@ penrose/
 ├── shared/               # Common math & utilities
 ├── docs/                 # Architecture & usage guides
 ├── outputs/              # Generated benchmarks & renders
-├── examples/             # Example workflows
+├── examples/             # Config entry points: benchmark / viewer / export
 ├── vendor/               # Eigen, stb (header-only)
 ├── CMakeLists.txt
 ├── vcpkg.json
@@ -223,18 +223,22 @@ cmake --build build
 
 ## Run
 
-| Goal | Command |
-|-------|---------|
-| GPU renderer | `./build/Penrose` |
-| Generate benchmarks | `./build/benchmark_test` |
-| Interactive CPU viewer | `./build/visualization_viewer --csv outputs/.../orbital.csv` |
-| Export still | `./build/visualization_export --csv outputs/.../orbital.csv` |
-| Run visualization tests | `./build/visualization_test` |
+CPU visualization uses **three config-driven executables**. Edit the matching `examples/*/main.cpp`, rebuild, and run — no CSV paths or CLI flags required.
 
-Complete walkthrough:
+| Goal | Edit | Command |
+|------|------|---------|
+| GPU renderer | — | `./build/Penrose` |
+| Physics benchmarks | `examples/benchmark/main.cpp` | `./build/physics_benchmark` |
+| Interactive CPU viewer | `examples/viewer/main.cpp` | `./build/visualization_viewer` |
+| Export still / sequence | `examples/export/main.cpp` | `./build/visualization_export` |
 
-`docs/frame_capture/RUNNING.md`
-`docs/frame_capture/VISUALIZATION_GUIDE.md`
+```bash
+# Example: change initial conditions in examples/viewer/main.cpp, then
+cmake --build build --target visualization_viewer
+./build/visualization_viewer
+```
+
+Complete walkthrough: [`docs/VISUALIZATION_GUIDE.md`](docs/VISUALIZATION_GUIDE.md) · Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · GPU app: [`docs/RUNNING.md`](docs/RUNNING.md)
 
 ---
 
@@ -263,11 +267,13 @@ including
 # Documentation
 
 | Document | Description |
-|-----------|-------------|
-| visualization/README.md | CPU visualization architecture |
-| docs/RUNNING.md | GPU renderer |
-| docs/frame_capture/VISUALIZATION_GUIDE.md | CPU visualization workflow |
-| docs/architecture/ | Design documentation |
+|----------|-------------|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Current architecture (sole reference) |
+| [`docs/VISUALIZATION_GUIDE.md`](docs/VISUALIZATION_GUIDE.md) | CPU three-executable UX |
+| [`docs/RUNNING.md`](docs/RUNNING.md) | Install / GPU renderer |
+| [`visualization/README.md`](visualization/README.md) | CPU visualization module |
+| [`docs/reviews/`](docs/reviews/) | Architecture reviews |
+| [`docs/legacy/`](docs/legacy/) | Superseded plans and old docs |
 
 ---
 

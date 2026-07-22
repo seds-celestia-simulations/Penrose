@@ -17,7 +17,7 @@ struct TrajectoryAdapterOptions {
     bool use_state_time = true;
 };
 
-// Convert immutable physics states (Schwarzschild spherical X) into a visualization trajectory.
+// Convert immutable physics states (spherical X = [t,r,θ,φ,...]) into a Cartesian trajectory.
 Trajectory adapt_states(std::span<const State> states, const TrajectoryAdapterOptions& options = {});
 
 Trajectory adapt_states(const std::vector<State>& states, const TrajectoryAdapterOptions& options = {});

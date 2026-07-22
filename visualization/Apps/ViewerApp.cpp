@@ -1,43 +1,31 @@
-#include "DisplayBlit.h"
+#include "ViewerApp.h"
 
-#include "../Camera/Camera.h"
-#include "../IO/CsvTrajectoryLoader.h"
-#include "../Presentation/PresentationDefaults.h"
+#include "DisplayBlit.h"
 #include "../Presentation/PresentationPipeline.h"
-#include "../Presentation/PresentationProfile.h"
-#include "../Scene/SceneBuilder.h"
+#include "../Renderer/Framebuffer.h"
 
 #include <GLFW/glfw3.h>
 
 #include <algorithm>
 #include <chrono>
 #include <iostream>
-#include <string>
-#include <vector>
 
+namespace viz {
 namespace {
 
 struct ViewerState {
-    viz::Scene scene;
-    viz::Camera camera;
-    viz::Framebuffer framebuffer;
-    viz::PresentationPipeline pipeline;
-    viz::PresentationProfile profile = viz::PresentationProfile::interactive_default();
-    viz::DisplayBlit display;
+    Scene scene;
+    Camera camera;
+    Framebuffer framebuffer;
+    PresentationPipeline pipeline;
+    PresentationProfile profile{};
+    RenderOptions render_options{};
+    DisplayBlit display;
     bool dragging = false;
     bool panning = false;
     double last_x = 0.0;
     double last_y = 0.0;
 };
-
-void load_csv_into_scene(viz::Scene& scene, const std::string& path) {
-    if (auto loaded = viz::load_trajectory_csv(path)) {
-        scene.add_trajectory(std::move(loaded->trajectory));
-        std::cout << loaded->message << " (" << path << ")\n";
-    } else {
-        std::cerr << "Failed to load CSV: " << path << "\n";
-    }
-}
 
 void scroll_callback(GLFWwindow* window, double /*xoffset*/, double yoffset) {
     auto* state = static_cast<ViewerState*>(glfwGetWindowUserPointer(window));
@@ -140,72 +128,35 @@ void print_controls() {
               << "  Left/Right    scrub\n"
               << "  Home/End      jump to start/end\n"
               << "  1-9           select trajectory highlight\n"
-              << "  Escape        quit\n"
-              << "\nTip: use --speed 5 (or higher) for faster orbit evolution.\n";
+              << "  Escape        quit\n";
 }
 
 } // namespace
 
-int main(int argc, char** argv) {
-    int width = 1280;
-    int height = 720;
-    bool classic = false;
-    float playback_speed = 1.0f;
-    std::vector<std::string> csv_paths;
-
-    for (int i = 1; i < argc; ++i) {
-        const std::string arg = argv[i];
-        if (arg == "--width" && i + 1 < argc) {
-            width = std::stoi(argv[++i]);
-        } else if (arg == "--height" && i + 1 < argc) {
-            height = std::stoi(argv[++i]);
-        } else if (arg == "--csv" && i + 1 < argc) {
-            csv_paths.push_back(argv[++i]);
-        } else if (arg == "--classic") {
-            classic = true;
-        } else if (arg == "--speed" && i + 1 < argc) {
-            playback_speed = std::stof(argv[++i]);
-        } else if (arg == "--help" || arg == "-h") {
-            std::cout << "Usage: visualization_viewer [--width W] [--height H] [--csv path] [--classic] [--speed S]\n";
-            return 0;
-        }
-    }
-
-    GLFWwindow* window = viz::create_viewer_window(width, height, "Penrose — Black Hole Orbit");
+int run_interactive_viewer(Scene scene, Camera camera, const VisualizationConfig& config) {
+    GLFWwindow* window = create_viewer_window(config.width, config.height, config.title);
     if (window == nullptr) {
         std::cerr << "Failed to create viewer window\n";
         return 1;
     }
 
     ViewerState state;
-    state.framebuffer.resize(width, height);
-    state.scene = classic ? viz::SceneBuilder::default_schwarzschild_scene()
-                          : viz::Scene(viz::cinematic_scene_settings());
-    if (classic) {
-        state.camera.set_distance(12.0f);
-        state.camera.set_angles(0.6f, 0.35f);
-    } else {
-        viz::apply_cinematic_camera(state.camera);
-    }
-    state.profile.enabled = !classic;
+    state.scene = std::move(scene);
+    state.camera = camera;
+    state.profile = config.presentation;
+    state.render_options = config.render;
+    state.framebuffer.resize(config.width, config.height);
 
-    viz::RenderOptions render_options{};
-    render_options.starfield_half_resolution = false;
-
-    int fbw = width;
-    int fbh = height;
-    glfwGetFramebufferSize(window, &fbw, &fbh);
-    state.framebuffer.resize(fbw, fbh);
-
-    for (const std::string& csv : csv_paths) {
-        load_csv_into_scene(state.scene, csv);
-    }
     if (!state.scene.trajectories().empty()) {
-        viz::frame_camera_on_trajectories(state.camera, state.scene);
         state.scene.playback().time = 0.0;
         state.scene.playback().playing = true;
-        state.scene.playback().speed = std::max(0.01f, playback_speed);
+        state.scene.playback().speed = std::max(0.01f, config.playback_speed);
     }
+
+    int fbw = config.width;
+    int fbh = config.height;
+    glfwGetFramebufferSize(window, &fbw, &fbh);
+    state.framebuffer.resize(fbw, fbh);
 
     glfwSetWindowUserPointer(window, &state);
     glfwSetScrollCallback(window, scroll_callback);
@@ -222,7 +173,6 @@ int main(int argc, char** argv) {
 
     print_controls();
 
-    // Reset after CSV load / init so the first frame does not advance playback by load time.
     auto last = std::chrono::steady_clock::now();
     auto fps_window_start = last;
     int frame_count = 0;
@@ -235,8 +185,6 @@ int main(int argc, char** argv) {
 
         process_keyboard(window, state, dt);
 
-        int fbw = 0;
-        int fbh = 0;
         glfwGetFramebufferSize(window, &fbw, &fbh);
         if (fbw > 0 && fbh > 0 &&
             (fbw != state.framebuffer.width() || fbh != state.framebuffer.height())) {
@@ -250,7 +198,7 @@ int main(int argc, char** argv) {
         }
 
         const auto render_start = std::chrono::steady_clock::now();
-        state.pipeline.render(state.scene, state.camera, state.framebuffer, render_options,
+        state.pipeline.render(state.scene, state.camera, state.framebuffer, state.render_options,
                               state.profile);
         const auto render_end = std::chrono::steady_clock::now();
         const double render_ms =
@@ -269,7 +217,8 @@ int main(int argc, char** argv) {
             std::cout << "[viz] " << state.framebuffer.width() << "x" << state.framebuffer.height()
                       << "  fps=" << static_cast<int>(fps + 0.5) << "  render="
                       << static_cast<int>(avg_render_ms + 0.5) << " ms/frame"
-                      << (state.profile.lensing_strength > 0.0f ? " (lensing)" : "")
+                      << (state.profile.enabled && state.profile.lensing_strength > 0.0f ? " (lensing)"
+                                                                                        : "")
                       << "\n";
             fps_window_start = now;
             frame_count = 0;
@@ -282,3 +231,5 @@ int main(int argc, char** argv) {
     glfwTerminate();
     return 0;
 }
+
+} // namespace viz

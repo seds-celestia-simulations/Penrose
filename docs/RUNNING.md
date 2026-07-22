@@ -4,14 +4,14 @@ This guide covers how to install dependencies and run each Penrose instance:
 
 1. **GPU real-time interactive engine** (`Penrose`)
 2. **Frame capture** and **PPM → video** utilities
-3. **CPU physics benchmarking** (`benchmark_test`)
+3. **CPU physics benchmarking** (`physics_benchmark`)
 
 Penrose has two independent pipelines:
 
 | Pipeline | Location | Executable / tool |
 |---|---|---|
 | GPU real-time | `realtime/` | `Penrose` |
-| CPU scientific | `physics/` | `benchmark_test` |
+| CPU scientific | `physics/` + `examples/benchmark/` | `physics_benchmark` |
 
 ---
 
@@ -203,7 +203,7 @@ ffmpeg -framerate 30 -pattern_type glob \
 
 ## 3. Physics Benchmarking (CPU)
 
-The CPU scientific pipeline lives under `physics/`. The CMake target `benchmark_test` runs freefall, orbital, and null-geodesic validation drivers from `physics/validation/`.
+The CPU scientific pipeline lives under `physics/`. The CMake target `physics_benchmark` runs freefall, orbital, and null-geodesic validation drivers from `physics/validation/`.
 
 ### Build
 
@@ -213,30 +213,30 @@ If you already configured the project in §1, you only need to build the benchma
 
 ```bash
 cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=[PATH_TO_VCPKG]/scripts/buildsystems/vcpkg.cmake
-cmake --build build --target benchmark_test
+cmake --build build --target physics_benchmark
 ```
 
 **Windows:**
 
 ```powershell
 cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=[PATH_TO_VCPKG]\scripts\buildsystems\vcpkg.cmake
-cmake --build build --config Debug --target benchmark_test
+cmake --build build --config Debug --target physics_benchmark
 ```
 
-`benchmark_test` links Eigen and does not require OpenGL/GLFW for execution.
+`physics_benchmark` links Eigen and does not require OpenGL/GLFW for execution.
 
 ### Run
 
 **Linux / macOS:**
 
 ```bash
-./build/benchmark_test
+./build/physics_benchmark
 ```
 
 **Windows:**
 
 ```powershell
-.\build\Debug\benchmark_test.exe
+.\build\Debug\physics_benchmark.exe
 ```
 
 Null-geodesic cases can take several minutes.
@@ -261,16 +261,18 @@ Analysis notebooks and plots live under `physics/analysis/`.
 |---|---|
 | Build GPU visualizer | `cmake --build build` (Windows: add `--config Debug`) |
 | Run GPU visualizer | `./build/Penrose` or `build\Debug\Penrose.exe` |
-| Build CPU benchmarks | `cmake --build build --target benchmark_test` |
-| Run CPU benchmarks | `./build/benchmark_test` or `build\Debug\benchmark_test.exe` |
+| Build CPU benchmarks | `cmake --build build --target physics_benchmark` |
+| Run CPU benchmarks | `./build/physics_benchmark` or `build\Debug\physics_benchmark.exe` |
 | PPM → video | `python realtime/visualization/ppm_to_video.py` |
 
 ---
 
 ## Related docs
 
-- [README.md](../README.md) — project overview and short build notes
-- [docs/architecture/architecture_refactor.md](architecture/architecture_refactor.md) — architecture and pipeline structure
-- [docs/frame_capture/FRAME_CAPTURE.md](frame_capture/FRAME_CAPTURE.md) — frame capture details
-- [docs/frame_capture/PPM_TO_VIDEO_README.md](frame_capture/PPM_TO_VIDEO_README.md) — video conversion details
-- [docs/reports/PROJECT_DOCUMENTATION.md](reports/PROJECT_DOCUMENTATION.md) — technical documentation
+- [README.md](../README.md) — project overview
+- [ARCHITECTURE.md](ARCHITECTURE.md) — current architecture (sole reference)
+- [VISUALIZATION_GUIDE.md](VISUALIZATION_GUIDE.md) — CPU three-executable UX
+- [frame_capture/FRAME_CAPTURE.md](frame_capture/FRAME_CAPTURE.md) — GPU frame capture
+- [frame_capture/PPM_TO_VIDEO_README.md](frame_capture/PPM_TO_VIDEO_README.md) — PPM → video
+- [reviews/](reviews/) — architecture reviews
+- [legacy/](legacy/) — superseded plans and historical docs
