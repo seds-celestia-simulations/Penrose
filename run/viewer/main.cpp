@@ -16,8 +16,8 @@
 
 #include "simulation/SimulationRequest.h"
 
+#include "adapter/SimulationTrajectoryAdapter.h"
 #include "Apps/ViewerApp.h"
-#include "Preparation/VisualizationPreparation.h"
 #include "Presentation/VisualizationConfig.h"
 
 #include <iostream>
@@ -134,7 +134,7 @@ int main() {
                   << " states\n";
     }
 
-    viz::Scene scene = viz::prepare_scene(trajectories, viz);
+    viz::Scene scene = viz::prepare_scene_from_results(trajectories, viz);
     viz::Camera camera = viz::make_camera(scene, viz.camera);
     return viz::run_interactive_viewer(std::move(scene), camera, viz);
 }

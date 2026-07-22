@@ -4,6 +4,8 @@
 #include "null_geodesic.h"
 #include "orbital.h"
 
+#include "../validation/observables/SchwarzschildObservables.h"
+
 #include <cmath>
 #include <iostream>
 
@@ -18,7 +20,7 @@ void run_null_at_b(double rs, double r0, double b, double dt, int max_steps) {
     const double vr = -std::sqrt(E * E - f * (L * L / (r0 * r0)));
 
     std::cout << "\n=== Running b = " << b << " (dt = " << dt << ") ===\n";
-    benchmark_null_geodesic(r0, vr, vph, dt, max_steps);
+    benchmark_null_geodesic(rs, r0, vr, vph, dt, max_steps);
 }
 
 } // namespace
@@ -29,21 +31,19 @@ int run_physics_benchmarks(const BenchmarkConfig& config) {
         return 1;
     }
 
-    // Existing validation drivers currently hardcode rs = 1.0 internally.
-    (void)config.metric;
-    const double rs = 1.0;
+    const double rs = config.metric.mass;
 
     if (config.run_freefall) {
-        benchmark_freefall(config.freefall.r0, config.freefall.dt);
+        benchmark_freefall(rs, config.freefall.r0, config.freefall.dt);
     }
 
     if (config.run_orbital) {
-        benchmark_orbital(config.orbital.r0, config.orbital.vr, config.orbital.vphi,
-                          config.orbital.dt, config.orbital.max_steps);
+        benchmark_orbital(rs, config.orbital.r0, config.orbital.vr, config.orbital.vphi,
+                            config.orbital.dt, config.orbital.max_steps);
     }
 
     if (config.run_null_suite) {
-        const double b_crit = (3.0 * std::sqrt(3.0) / 2.0) * rs;
+        const double b_crit = Physics::Observables::critical_impact_parameter(rs);
         run_null_at_b(rs, config.null_suite.r0, b_crit + config.null_suite.escape_offset,
                       config.null_suite.dt, config.null_suite.max_steps);
         run_null_at_b(rs, config.null_suite.r0, b_crit + config.null_suite.capture_offset,

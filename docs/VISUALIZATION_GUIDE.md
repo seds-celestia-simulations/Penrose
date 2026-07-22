@@ -1,6 +1,6 @@
 # Penrose Visualization — User Guide
 
-CPU visualization exposes **three** production executables. Edit a `main.cpp`, build, run. No CSV paths or CLI flags for viewer/export.
+CPU visualization exposes **three** production executables. Edit a `main.cpp` under `run/`, build, run. No CSV paths or CLI flags for viewer/export.
 
 Architecture overview: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
@@ -10,18 +10,30 @@ Architecture overview: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 | Executable | Config | Purpose |
 |------------|--------|---------|
-| `physics_benchmark` | [`examples/benchmark/main.cpp`](../examples/benchmark/main.cpp) | Validation → `outputs/benchmark_data/<timestamp>/` |
-| `visualization_viewer` | [`examples/viewer/main.cpp`](../examples/viewer/main.cpp) | Integrate in memory → interactive viewer |
-| `visualization_export` | [`examples/export/main.cpp`](../examples/export/main.cpp) | Integrate in memory → PPM still/sequence |
+| `physics_benchmark` | [`run/benchmark/main.cpp`](../run/benchmark/main.cpp) | Validation → `outputs/benchmark_data/<timestamp>/` |
+| `visualization_viewer` | [`run/viewer/main.cpp`](../run/viewer/main.cpp) | Integrate in memory → interactive viewer |
+| `visualization_export` | [`run/export/main.cpp`](../run/export/main.cpp) | Integrate in memory → PPM still/sequence |
 
 ```text
-Open examples/<workflow>/main.cpp
+Open run/<workflow>/main.cpp
         ↓
-Edit SimulationConfig + metric params + ICs (and render settings)
+Edit SimulationRequest(s) + VisualizationConfig
         ↓
 cmake --build build --target <executable>
         ↓
 ./build/<executable>
+```
+
+### Pipeline stages
+
+```text
+Physics (SimulationRequest per particle)
+        ↓
+Trajectory storage (SimulationResult)
+        ↓
+Visualization preparation (prepare_scene — pass-through today)
+        ↓
+Rendering (viewer / PPM)
 ```
 
 ### Three config layers
@@ -44,11 +56,13 @@ viz.preparation.interpolation_method = viz::InterpolationMethod::PassThrough;
 viz.preparation.trajectory_resolution = 1.0f; // reserved for future resampling
 // ... camera, presentation, trajectory_style, render ...
 
-viz::Scene scene = viz::prepare_scene(trajectories, viz);
+viz::Scene scene = viz::prepare_scene_from_results(trajectories, viz);
 viz::Camera camera = viz::make_camera(scene, viz.camera);
 ```
 
-Do **not** put metric-specific fields on `SimulationConfig`. Physics and visualization resolutions are separate. Multiple particles are simulated independently and overlaid only in `prepare_scene`. See [`ARCHITECTURE.md`](ARCHITECTURE.md) §2–§5.
+Do **not** put metric-specific fields on `SimulationConfig`. Physics and visualization resolutions are separate. Multiple particles are simulated independently and overlaid only in `prepare_scene`. The visualization library accepts `StoredTrajectory` only — conversion from `SimulationResult` lives in `run/adapter/`. See [`ARCHITECTURE.md`](ARCHITECTURE.md) §2–§5.
+
+Per-particle styles: pass a parallel `std::span<const TrajectoryStyle>` to `prepare_scene_from_results`, or set `StoredTrajectory::use_style`.
 
 ---
 
@@ -76,10 +90,12 @@ cmake --build build --target physics_benchmark
 Writes CSVs under `outputs/benchmark_data/<timestamp>/`. Optional analysis:
 
 ```bash
-python -m visualization.scientific.analyze_benchmarks
-python -m visualization.scientific.plot_benchmarks
-python -m visualization.scientific.generate_report
+python -m physics.analysis.analyze_benchmarks
+python -m physics.analysis.plot_benchmarks
+python -m physics.analysis.generate_report
 ```
+
+(`python -m visualization.scientific.*` remains as a compatibility shim.)
 
 ---
 
@@ -90,6 +106,8 @@ cmake --build build --target visualization_viewer
 ./build/visualization_viewer
 ```
 
+`run/viewer/main.cpp` currently demonstrates **multiple independent null geodesics** overlaid in one scene.
+
 | Input | Action |
 |-------|--------|
 | Left drag | Orbit |
@@ -97,9 +115,10 @@ cmake --build build --target visualization_viewer
 | Scroll | Zoom |
 | Space | Play / pause |
 | Left / Right | Scrub |
+| 1–9 | Select trajectory highlight |
 | Escape | Quit |
 
-Raise `playback_speed` or set `presentation.enabled = false` in `examples/viewer/main.cpp` for responsiveness.
+Raise `playback_speed` or set `presentation.enabled = false` in `run/viewer/main.cpp` for responsiveness.
 
 ---
 
@@ -112,7 +131,7 @@ cmake --build build --target visualization_export
 
 `frame_count = 1` → still; `>1` → `frame_XXXXXX.ppm` under `outputs/rendered_frames/<timestamp>/`.
 
-GPU PPM→video helpers: [`frame_capture/`](frame_capture/).
+GPU capture PPMs use a different tree (`imagesequence/`). Helpers: [`frame_capture/`](frame_capture/).
 
 ---
 
@@ -121,5 +140,7 @@ GPU PPM→video helpers: [`frame_capture/`](frame_capture/).
 | Problem | Fix |
 |---------|-----|
 | No display for viewer | Use export, or `-DPENROSE_BUILD_VIEWER=OFF` |
-| Want freefall / null in viewer | Change `scenario` + IC type in `examples/viewer/main.cpp` |
+| Want freefall / bound orbit | Change `scenario` + IC type on each `SimulationRequest` in `run/viewer/main.cpp` |
+| Add another particle | Push another `SimulationRequest` into the `simulations` vector |
 | Benchmark CSVs missing | Run `./build/physics_benchmark` |
+| Build fails looking for `examples/` | Entry points live under `run/` — reconfigure CMake from a current checkout |

@@ -16,9 +16,9 @@
 
 #include "simulation/SimulationRequest.h"
 
+#include "adapter/SimulationTrajectoryAdapter.h"
 #include "IO/OutputPaths.h"
 #include "IO/PpmWriter.h"
-#include "Preparation/VisualizationPreparation.h"
 #include "Presentation/PresentationPipeline.h"
 #include "Presentation/VisualizationConfig.h"
 #include "Renderer/Framebuffer.h"
@@ -122,7 +122,7 @@ int main() {
                   << " states\n";
     }
 
-    viz::Scene scene = viz::prepare_scene(trajectories, viz);
+    viz::Scene scene = viz::prepare_scene_from_results(trajectories, viz);
     viz::Camera camera = viz::make_camera(scene, viz.camera);
 
     viz::Framebuffer framebuffer(viz.width, viz.height);

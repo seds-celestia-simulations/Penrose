@@ -1,5 +1,9 @@
 # Deep Architectural Review: Penrose
 
+> **Historical / non-normative.** Pre-refactor review describing an earlier `src/`-style layout.
+> It is not the source of truth for the current repository.
+> Current reference: [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
+
 ## 1. Executive Summary
 
 Penrose is currently best understood as a real-time Schwarzschild black-hole renderer with supporting CPU validation code, not yet as a general-purpose relativistic ray tracing framework.

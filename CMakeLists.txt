@@ -34,7 +34,11 @@ add_library(penrose_shared INTERFACE)
 target_include_directories(penrose_shared INTERFACE shared/)
 target_link_libraries(penrose_shared INTERFACE Eigen3::Eigen)
 
-# 4. Compile GLAD manually from the realtime GPU headers
+# 4. Neutral OpenGL loader for CPU visualization (no realtime/ dependency)
+add_library(penrose_glad STATIC vendor/glad/glad.c)
+target_include_directories(penrose_glad PUBLIC vendor/glad)
+
+# Realtime GPU loader (unchanged — realtime/gpu layout)
 add_library(glad realtime/gpu/glad/glad.c)
 target_include_directories(glad PUBLIC realtime/gpu)
 
@@ -73,7 +77,7 @@ add_custom_command(TARGET Penrose POST_BUILD
     "$<TARGET_FILE_DIR:Penrose>/resources"
 )
 
-# 7. Shared physics engine sources (used by benchmarks + in-memory viz entry points)
+# 7. CPU scientific framework library
 set(PHYSICS_ENGINE_SOURCES
     physics/metrics/CoordinateChart.cpp
     physics/metrics/SchwarzschildMetric.cpp
@@ -82,23 +86,27 @@ set(PHYSICS_ENGINE_SOURCES
     physics/simulation/TrajectorySolver.cpp
     physics/simulation/TerminationPolicy.cpp
     physics/simulation/SimulationPipeline.cpp
+    physics/simulation/initial_conditions/SchwarzschildInitialStateBuilders.cpp
 )
 
-# 8. Physics benchmark — configure in examples/benchmark/main.cpp, then run
+add_library(penrose_physics STATIC ${PHYSICS_ENGINE_SOURCES})
+target_include_directories(penrose_physics PUBLIC physics)
+target_link_libraries(penrose_physics PUBLIC penrose_shared Eigen3::Eigen)
+
+# 8. Physics benchmark — configure in run/benchmark/main.cpp, then run
 #    ./build/physics_benchmark
 add_executable(physics_benchmark
-    examples/benchmark/main.cpp
+    run/benchmark/main.cpp
     physics/validation/BenchmarkRunner.cpp
     physics/validation/orbital.cpp
     physics/validation/null_geodesic.cpp
     physics/validation/freefall.cpp
-    ${PHYSICS_ENGINE_SOURCES}
 )
 target_include_directories(physics_benchmark PRIVATE physics physics/validation)
 target_compile_definitions(physics_benchmark PRIVATE PENROSE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
-target_link_libraries(physics_benchmark PRIVATE Eigen3::Eigen penrose_shared)
+target_link_libraries(physics_benchmark PRIVATE penrose_physics)
 
-# 9. CPU visualization library (internal)
+# 9. CPU visualization library (presentation only — no physics headers)
 set(VISUALIZATION_SOURCES
     visualization/Geometry/Coordinates.cpp
     visualization/Geometry/Mesh.cpp
@@ -124,37 +132,37 @@ set(VISUALIZATION_SOURCES
 add_library(visualization STATIC ${VISUALIZATION_SOURCES})
 target_include_directories(visualization
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/visualization
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/physics
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 )
 target_compile_definitions(visualization PRIVATE PENROSE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 target_link_libraries(visualization PUBLIC Eigen3::Eigen penrose_shared)
 
-# 10. Interactive viewer — configure in examples/viewer/main.cpp, then run
+# 10. Interactive viewer — configure in run/viewer/main.cpp, then run
 #     ./build/visualization_viewer
 #     Integrates trajectories in memory (no CSV).
 option(PENROSE_BUILD_VIEWER "Build interactive CPU visualization viewer" ON)
 if(PENROSE_BUILD_VIEWER)
     add_executable(visualization_viewer
-        examples/viewer/main.cpp
+        run/viewer/main.cpp
+        run/adapter/SimulationTrajectoryAdapter.cpp
         visualization/Apps/ViewerApp.cpp
         visualization/Apps/DisplayBlit.cpp
-        ${PHYSICS_ENGINE_SOURCES}
     )
     target_include_directories(visualization_viewer
-        PRIVATE physics visualization realtime/gpu ${CMAKE_SOURCE_DIR})
-    target_link_libraries(visualization_viewer PRIVATE visualization glfw glad Eigen3::Eigen penrose_shared)
+        PRIVATE physics visualization run ${CMAKE_SOURCE_DIR})
+    target_link_libraries(visualization_viewer PRIVATE visualization penrose_physics glfw penrose_glad)
 endif()
 
-# 11. Headless export — configure in examples/export/main.cpp, then run
+# 11. Headless export — configure in run/export/main.cpp, then run
 #     ./build/visualization_export
 #     Integrates trajectories in memory (no CSV).
 add_executable(visualization_export
-    examples/export/main.cpp
-    ${PHYSICS_ENGINE_SOURCES}
+    run/export/main.cpp
+    run/adapter/SimulationTrajectoryAdapter.cpp
 )
-target_include_directories(visualization_export PRIVATE physics visualization ${CMAKE_SOURCE_DIR})
+target_include_directories(visualization_export PRIVATE physics visualization run ${CMAKE_SOURCE_DIR})
 target_compile_definitions(visualization_export PRIVATE PENROSE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
-target_link_libraries(visualization_export PRIVATE visualization Eigen3::Eigen penrose_shared)
+target_link_libraries(visualization_export PRIVATE visualization penrose_physics)
 
 # 12. Internal unit tests (not part of the public three-executable interface)
 option(PENROSE_BUILD_TESTS "Build internal visualization unit tests" OFF)

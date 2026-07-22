@@ -1,17 +1,19 @@
 # Running Penrose
 
-This guide covers how to install dependencies and run each Penrose instance:
+This guide covers how to install dependencies and run each Penrose pipeline:
 
 1. **GPU real-time interactive engine** (`Penrose`)
 2. **Frame capture** and **PPM → video** utilities
 3. **CPU physics benchmarking** (`physics_benchmark`)
-
-Penrose has two independent pipelines:
+4. **CPU trajectory viewer / export** (`visualization_viewer`, `visualization_export`)
 
 | Pipeline | Location | Executable / tool |
 |---|---|---|
 | GPU real-time | `realtime/` | `Penrose` |
-| CPU scientific | `physics/` + `examples/benchmark/` | `physics_benchmark` |
+| CPU scientific | `physics/` + `run/benchmark/` | `physics_benchmark` |
+| CPU visualization | `visualization/` + `run/viewer|export/` | `visualization_viewer`, `visualization_export` |
+
+Architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md) · CPU viz UX: [`VISUALIZATION_GUIDE.md`](VISUALIZATION_GUIDE.md).
 
 ---
 
@@ -29,7 +31,7 @@ Penrose has two independent pipelines:
 
 Declared C++ dependencies (`vcpkg.json`): `glfw3`, `glad`, `glm`, `eigen3`.
 
-GLAD is built from sources under `realtime/gpu/`. GLFW is fetched by CMake if needed.
+GLAD for the GPU app is built from `realtime/gpu/`. The CPU viewer uses a neutral copy under `vendor/glad/` (`penrose_glad` target). GLFW is fetched by CMake if needed.
 
 ### Install vcpkg
 
@@ -111,7 +113,7 @@ Depending on generator/platform, the binary may live under a configuration subdi
 
 ## 2. Frame Capture and PPM → Video
 
-### Frame capture (inside the visualizer)
+### Frame capture (inside the GPU visualizer)
 
 1. Start `Penrose` (see §1).
 2. Press **P** to start capturing.
@@ -199,11 +201,13 @@ ffmpeg -framerate 30 -pattern_type glob \
   -c:v libx264 -pix_fmt yuv420p output.mp4
 ```
 
+> CPU export PPMs (`outputs/rendered_frames/`) are a different tree from GPU `imagesequence/`. The helper above targets GPU capture sessions.
+
 ---
 
 ## 3. Physics Benchmarking (CPU)
 
-The CPU scientific pipeline lives under `physics/`. The CMake target `physics_benchmark` runs freefall, orbital, and null-geodesic validation drivers from `physics/validation/`.
+Configure the suite in [`run/benchmark/main.cpp`](../run/benchmark/main.cpp). The CMake target `physics_benchmark` runs freefall, orbital, and null-geodesic validation drivers from `physics/validation/` via `BenchmarkRunner`.
 
 ### Build
 
@@ -243,15 +247,44 @@ Null-geodesic cases can take several minutes.
 
 ### Outputs
 
-CSV trajectories and diagnostics are written to:
+CSV trajectories and diagnostics are written under:
 
 ```text
-physics/results/data/
+outputs/benchmark_data/<timestamp>/
 ```
 
-Examples: `freefall.csv`, `orbital.csv`, `null_b_*.csv`.
+Optional Python analysis (`physics/analysis/`; legacy shim `python -m visualization.scientific.*` still works):
 
-Analysis notebooks and plots live under `physics/analysis/`.
+```bash
+python -m physics.analysis.analyze_benchmarks
+python -m physics.analysis.plot_benchmarks
+python -m physics.analysis.generate_report
+```
+
+Notebooks / figures land under `outputs/analysis/` and `outputs/validation_figures/`.
+
+---
+
+## 4. CPU Trajectory Viewer and Export
+
+Edit config in [`run/viewer/main.cpp`](../run/viewer/main.cpp) or [`run/export/main.cpp`](../run/export/main.cpp), then:
+
+```bash
+cmake --build build --target visualization_viewer visualization_export
+./build/visualization_viewer
+./build/visualization_export
+```
+
+Pipeline: `SimulationRequest`(s) → `run_all` → `prepare_scene_from_results` → viewer / PPM.
+
+Full walkthrough: [`VISUALIZATION_GUIDE.md`](VISUALIZATION_GUIDE.md).
+
+| Option | Default | Effect |
+|--------|---------|--------|
+| `PENROSE_BUILD_VIEWER` | `ON` | Build interactive viewer |
+| `PENROSE_BUILD_TESTS` | `OFF` | Internal visualization unit tests |
+
+Export stills / sequences: `outputs/rendered_frames/<timestamp>/`.
 
 ---
 
@@ -263,7 +296,10 @@ Analysis notebooks and plots live under `physics/analysis/`.
 | Run GPU visualizer | `./build/Penrose` or `build\Debug\Penrose.exe` |
 | Build CPU benchmarks | `cmake --build build --target physics_benchmark` |
 | Run CPU benchmarks | `./build/physics_benchmark` or `build\Debug\physics_benchmark.exe` |
-| PPM → video | `python realtime/visualization/ppm_to_video.py` |
+| Build CPU viewer / export | `cmake --build build --target visualization_viewer visualization_export` |
+| Run CPU viewer | `./build/visualization_viewer` |
+| Run CPU export | `./build/visualization_export` |
+| PPM → video (GPU capture) | `python realtime/visualization/ppm_to_video.py` |
 
 ---
 
@@ -274,5 +310,4 @@ Analysis notebooks and plots live under `physics/analysis/`.
 - [VISUALIZATION_GUIDE.md](VISUALIZATION_GUIDE.md) — CPU three-executable UX
 - [frame_capture/FRAME_CAPTURE.md](frame_capture/FRAME_CAPTURE.md) — GPU frame capture
 - [frame_capture/PPM_TO_VIDEO_README.md](frame_capture/PPM_TO_VIDEO_README.md) — PPM → video
-- [reviews/](reviews/) — architecture reviews
-- [legacy/](legacy/) — superseded plans and historical docs
+- [reviews/](reviews/) — historical architecture reviews

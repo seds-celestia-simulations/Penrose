@@ -1,7 +1,11 @@
 # Architectural Feasibility Review — Penrose
 
+> **Historical / non-normative.** Feasibility review of shared GR abstractions vs dual pipelines.
+> Does not describe the current `run/` entry points or three-stage CPU visualization pipeline.
+> Current reference: [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
+
 **Review type:** Architecture feasibility (no code changes, no runtime verification)  
-**Scope:** Current implementation vs long-term modular General Relativity framework  
+**Scope:** Snapshot of implementation vs long-term modular General Relativity framework (as of review date)  
 **Evidence basis:** `CMakeLists.txt`, `shared/`, `physics/`, `realtime/`, `visualization/`, examples, shaders
 
 ---

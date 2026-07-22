@@ -2,7 +2,8 @@
 
 #include "initial_conditions/InitialConditions.h"
 
-#include "../metrics/parameters/SchwarzschildParameters.h"
+#include <metrics/SchwarzschildParameters.h>
+#include <spacetime/MetricKind.h>
 
 #include <state/GeodesicState.h>
 
@@ -11,11 +12,7 @@
 
 namespace Simulation {
 
-// High-level spacetime selection for the orchestration layer.
-enum class SpacetimeKind {
-    Schwarzschild,
-    // Future: Kerr, ReissnerNordstrom, FLRW, SolarGravitationalLens, ...
-};
+using SpacetimeKind = Spacetime::MetricKind;
 
 enum class Scenario {
     BoundOrbit,
@@ -29,10 +26,13 @@ enum class GeodesicKind {
     Null,
 };
 
+// Scientific solver options owned by the physics framework (not benchmark-only hooks).
+struct SolverOptions {
+    bool null_constraint_projection = false;
+    int null_projection_interval = 1000;
+};
+
 // Layer 1 — physics settings / orchestration only.
-// Exists solely for numerical correctness (timestep, step limit, termination).
-// Metric- and scenario-specific numbers live in dedicated physics parameter types.
-// Visualization resolution is NOT configured here — see VisualizationPreparationSettings.
 struct SimulationConfig {
     SpacetimeKind spacetime = SpacetimeKind::Schwarzschild;
     Scenario scenario = Scenario::BoundOrbit;
@@ -42,23 +42,30 @@ struct SimulationConfig {
     int max_steps = 100000;
     double horizon_safety_factor = 1.0;
 
+    SolverOptions solver{};
+
     std::string name = "trajectory";
 };
 
+// Metric-derived metadata carried to consumers without visualization coupling.
+struct SimulationMetadata {
+    Spacetime::MetricKind metric = Spacetime::MetricKind::Schwarzschild;
+    Spacetime::CoordinateChartKind coordinate_chart = Spacetime::CoordinateChartKind::SchwarzschildSpherical;
+    double horizon_radius = 1.0;
+    double photon_sphere_radius = 1.5;
+};
+
 // Physics → Trajectory Storage boundary.
-// Immutable record of one independently integrated particle. No render knobs.
 struct SimulationResult {
     std::vector<State> history;
     double characteristic_radius = 1.0;
     std::string name;
     SpacetimeKind spacetime = SpacetimeKind::Schwarzschild;
+    SimulationMetadata metadata{};
 };
 
-// Alias clarifying the storage role in the Physics → Storage → Viz prep pipeline.
 using PhysicsTrajectory = SimulationResult;
 
-// Layer 2 is passed separately: metric parameters + initial conditions.
-// Adding Kerr/FLRW/SGL means new overloads + parameter structs — not new fields here.
 SimulationResult run_simulation(const SimulationConfig& config,
                                 const Spacetime::SchwarzschildParameters& metric,
                                 const BoundOrbitInitialConditions& initial);

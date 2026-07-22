@@ -1,8 +1,9 @@
 # Architecture reviews
 
-Non-normative reviews of Penrose’s architecture. For the current design, see [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
+**Historical / non-normative.** These reviews describe feasibility and earlier layouts; they are not the source of truth for the current design.
 
-| Document | Topic |
-|----------|--------|
-| [`shared_architecture_review.md`](shared_architecture_review.md) | Feasibility of shared GR abstractions vs dual pipelines |
-| [`legacy_architecture_review.md`](legacy_architecture_review.md) | Pre-refactor / early layout review |
+For the current architecture, see [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
+
+| Document | Topic | Notes |
+|----------|--------|-------|
+| [`shared_architecture_review.md`](shared_architecture_review.md) | Feasibility of shared GR abstractions vs dual pipelines | Dated relative to `run/` + three-stage CPU viz pipeline |

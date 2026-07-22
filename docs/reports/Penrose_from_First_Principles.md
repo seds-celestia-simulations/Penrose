@@ -1,6 +1,12 @@
 # Penrose from First Principles
 
-This document explains the current Penrose repository from the ground
+> **Note (documentation status):** This is a long-form science and implementation walkthrough.
+> Mathematical explanations remain useful. Directory and executable layout assumptions may be
+> dated relative to the current tree (`run/`, `realtime/core`, three-stage CPU visualization).
+> For current architecture and workflows, see [`../ARCHITECTURE.md`](../ARCHITECTURE.md),
+> [`../RUNNING.md`](../RUNNING.md), and [`../VISUALIZATION_GUIDE.md`](../VISUALIZATION_GUIDE.md).
+
+This document explains the Penrose repository from the ground
 up. It is not a critique, redesign, or optimization plan. Its purpose is
 to make the existing mathematics and code understandable.
 
