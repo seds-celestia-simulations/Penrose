@@ -1,35 +1,10 @@
 # Penrose
 
-**Penrose is a modular General Relativity framework for simulating, analyzing, and visualizing particle and photon trajectories in curved spacetime.**
+**A General Relativity framework for simulating, analyzing, and visualizing particle and photon trajectories in curved spacetime.**
 
-Built around a physics-first architecture, Penrose combines a validated CPU reference solver, scientific analysis tools, a trajectory visualization stack (GPU interactive viewer + headless CPU export), and a separate GPU real-time ray-march renderer into a unified framework for studying relativistic motion.
-
-Originally developed for Schwarzschild black holes, the long-term goal is a general framework supporting arbitrary spacetime metrics, gravitational lensing, and relativistic optical systems such as the Solar Gravitational Lens (SGL).
+Penrose combines a validated CPU reference solver, scientific benchmarking tools, a modular trajectory visualization pipeline, and a GPU real-time renderer to study particle and photon motion in curved spacetime.
 
 ---
-
-## Physics
-
-Penrose evolves **timelike** and **null geodesics** by numerically integrating the geodesic equation
-
-$$\frac{d^2x^\mu}{d\tau^2}+\Gamma^\mu_{\alpha\beta}\frac{dx^\alpha}{d\tau}\frac{dx^\beta}{d\tau}=0\$$
-
-using a modular spacetime abstraction.
-
-The framework separates:
-
-- spacetime geometry
-- equations of motion
-- numerical integration
-- trajectory storage
-- visualization preparation
-- rendering
-
-allowing new metrics to be introduced without modifying the core simulation pipeline, and allowing visualization quality to evolve without changing physics accuracy.
-
----
-
-# Gallery
 
 ## Real-Time Schwarzschild Rendering
 
@@ -40,75 +15,57 @@ allowing new metrics to be introduced without modifying the core simulation pipe
 
 <img width="1559" height="864" alt="image" src="https://github.com/user-attachments/assets/eefc82a2-d28a-4da2-b755-80b33b23bd14" />
 
-
 ---
-
-
-# Capabilities
-
-Penrose contains a complete scientific benchmarking pipeline.
-
-Current validation scenarios include
-
-- Stable bound orbits
-- Radial freefall
-- Null geodesic scattering
-- Critical photon trajectories
-- Integration convergence studies
-- Conserved quantity monitoring
-
-Outputs include
-
-- CSV trajectory data
-- Benchmark metrics
-- Validation reports
-- Publication-quality scientific figures
-- Interactive trajectory visualization
-- GPU real-time ray-march rendering
-
----
-
-# Features
 
 ## Physics
 
-- Schwarzschild metric implementation
-- Modular spacetime interface
-- Timelike and null geodesics
-- Analytical Christoffel symbols
-- RK4 geodesic integration
-- Configurable termination policies
-- Independent multi-particle simulations (`SimulationRequest` / `run_all`)
-- Extensible metric architecture
+Penrose evolves **timelike** and **null geodesics** by numerically integrating the geodesic equation on arbitrary spacetime metrics.
 
-## Scientific Computing
+$$\frac{d^2x^\mu}{d\tau^2}+\Gamma^\mu_{\alpha\beta}\frac{dx^\alpha}{d\tau}\frac{dx^\beta}{d\tau}=0\$$
 
-- Reference scientific implementation
-- Scientific benchmark suite
-- Automatic validation metrics
-- CSV trajectory export
-- Python analysis pipeline (`physics/analysis/`; compatibility shims under `visualization/scientific/`)
-- Deterministic simulations
+The simulation engine separates spacetime geometry, equations of motion, numerical integration, data storage, and visualization, allowing physical models and rendering systems to evolve independently.
 
-## Visualization
+---
 
-### Trajectory Visualization (`visualization/`)
+## Current Capabilities
 
-- Three-stage pipeline: physics → storage → preparation → Stage 3 render backend
-- Physics resolution independent of visualization resolution
-- Interactive GPU polyline viewer (`GpuPolylineBackend` / `visualization_gpu`)
-- Headless CPU export (`CpuRasterizerBackend` → PPM)
-- Multiple simultaneous trajectories (independent sims overlaid in prep)
-- Presentation-oriented CPU post-process on the export path
-- PPM stills and animation sequences
+### Physics
 
-### GPU Real-Time Renderer (`realtime/`)
+* Schwarzschild spacetime
+* Timelike and null geodesic evolution
+* Analytical Christoffel symbols
+* RK4 geodesic integration
+* Configurable termination policies
+* Extensible spacetime interface for future metrics
 
-- Interactive Schwarzschild ray-march renderer (separate product from trajectory viz)
-- OpenGL + GLSL
-- Real-time camera controls
-- Frame capture (P key) → PPM → video
-- High-performance lensing imagery
+### Scientific Analysis
+
+* Reference CPU implementation
+* Validation benchmark suite
+* Conserved quantity monitoring
+* Integration convergence studies
+* CSV trajectory export
+* Python-based analysis and figure generation
+
+### Trajectory Visualization
+
+A modular visualization pipeline decoupled from the physics engine.
+
+* Interactive GPU trajectory viewer
+* Headless CPU rasterization and image export
+* Multiple simultaneous trajectories
+* Resolution-independent rendering pipeline
+* Animation sequence generation
+
+### Real-Time Rendering
+
+An independent GPU renderer for interactive exploration of relativistic optics.
+
+* Real-time Schwarzschild ray marching
+* OpenGL / GLSL renderer
+* Interactive camera controls
+* Frame capture and image export
+* High-performance gravitational lensing visualization
 
 ---
 
@@ -176,44 +133,6 @@ Current architecture reference: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ---
 
-# Repository Structure
-
-```text
-penrose/
-├── run/                  # Config entry points: benchmark / viewer / export + adapter
-├── physics/              # CPU reference solver (+ analysis Python)
-│   ├── metrics/          # Spacetime geometry (Schwarzschild)
-│   ├── geodesics/        # Equations of motion
-│   ├── integrators/      # RK4 integration
-│   ├── simulation/       # TrajectorySolver, SimulationRequest, pipeline
-│   ├── validation/       # Benchmark suite + BenchmarkRunner
-│   ├── analysis/         # Python benchmark analysis / figures / reports
-│   └── export/           # Benchmark CSV I/O helpers
-├── visualization/        # Trajectory presentation (CPU export + GPU viewer)
-│   ├── Preparation/      # Stage 2: StoredTrajectory, prepare_scene
-│   ├── Apps/             # ViewerApp + DisplayBlit window helper
-│   ├── Renderer/         # TrajectoryRenderBackend, CPU raster, Gpu/
-│   ├── Scene/            # Scene composition
-│   ├── resources/        # Starfield asset for trajectory viz
-│   └── scientific/       # Compatibility shims → physics/analysis/
-├── realtime/             # GPU interactive ray-march renderer
-│   ├── core/             # Engine, Window, FrameCapture
-│   ├── render/           # OpenGL renderer
-│   ├── scene/            # Camera, particles
-│   ├── shaders/          # GLSL geodesic marching
-│   ├── resources/        # Textures & assets
-│   └── visualization/    # PPM → video helper
-├── shared/               # GR vocabulary (State, MetricKind, parameters)
-├── vendor/               # Eigen, stb, neutral glad (penrose_glad)
-├── docs/                 # Architecture & usage guides
-├── outputs/              # Generated benchmarks, figures, renders, notebooks
-├── CMakeLists.txt
-├── vcpkg.json
-└── requirements.txt      # Python analysis deps
-```
-
----
-
 # Quick Start
 
 ## Build
@@ -251,30 +170,6 @@ Complete walkthrough: [`docs/VISUALIZATION_GUIDE.md`](docs/VISUALIZATION_GUIDE.m
 
 ---
 
-# Outputs
-
-Benchmark and render runs generate timestamped outputs under:
-
-```text
-outputs/
-  benchmark_data/
-  validation_figures/
-  rendered_frames/
-  analysis/
-```
-
-including
-
-- trajectory CSVs
-- benchmark metrics
-- validation reports
-- publication figures
-- rendered images
-
-GPU ray-march capture sessions write separately to `imagesequence/`.
-
----
-
 # Documentation
 
 | Document | Description |
@@ -282,10 +177,6 @@ GPU ray-march capture sessions write separately to `imagesequence/`.
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Current architecture (sole reference) |
 | [`docs/VISUALIZATION_GUIDE.md`](docs/VISUALIZATION_GUIDE.md) | Trajectory viz three-executable UX |
 | [`docs/RUNNING.md`](docs/RUNNING.md) | Install / run all pipelines |
-| [`visualization/README.md`](visualization/README.md) | Visualization module (CPU + GPU backends) |
-| [`docs/frame_capture/`](docs/frame_capture/) | GPU ray-march frame capture + PPM → video |
-| [`docs/reviews/`](docs/reviews/) | Historical architecture reviews |
-| [`docs/reports/`](docs/reports/) | Long-form science notes |
 
 ---
 
@@ -310,10 +201,10 @@ Planned capabilities include
 
 Penrose currently provides a complete Schwarzschild simulation framework consisting of
 
-- validated CPU physics (`penrose_physics`)
+- validated CPU physics
 - scientific benchmarking and Python analysis
 - three-stage trajectory visualization with dual Stage 3 backends (GPU viewer / CPU export)
-- GPU real-time ray-march rendering (`realtime/`, independent of trajectory viz)
+- GPU real-time ray-march rendering
 
 Development is now focused on generalized spacetime support and expanding Penrose beyond Schwarzschild into a modular General Relativity research framework.
 
