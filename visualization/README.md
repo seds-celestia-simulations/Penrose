@@ -1,6 +1,6 @@
-# Penrose CPU Visualization
+# Penrose Visualization
 
-Standalone CPU visualization for Penrose trajectories. Independent of the GPU raymarcher in `realtime/`.
+Trajectory presentation for Penrose: headless CPU export and an interactive GPU polyline viewer. Independent of the GPU ray marcher in `realtime/`.
 
 Physics-agnostic rendering: this library never constructs metrics or solvers and does not include physics headers. Entry points run simulations via `penrose_physics`, convert results in `run/adapter/`, then call `prepare_scene`.
 
@@ -17,6 +17,23 @@ SimulationRequest(s)  →  run_all  →  SimulationResult
 ```
 
 Stage 2 is currently a pass-through. `VisualizationPreparationSettings` reserves knobs for future interpolation / resampling without touching the physics engine.
+
+Stage 3 has two backends behind `TrajectoryRenderBackend`:
+
+| Backend | Used by | Output |
+|---------|---------|--------|
+| `CpuRasterizerBackend` | `visualization_export` | PPM via `CPURasterizer` + optional `PostProcessor` |
+| `GpuPolylineBackend` | `visualization_viewer` | OpenGL polylines into the GLFW framebuffer |
+
+OpenGL code is confined to `visualization/Renderer/Gpu/` and the `visualization_gpu` static library (linked only by the viewer). Export does not require a display or OpenGL.
+
+### GPU viewer scope (v1)
+
+- Background clear + starfield (`visualization/resources/`) with mild rim warp
+- Opaque event-horizon disc and dense glow ring (billboard; no mesh silhouette)
+- Solid trajectory ribbons with along-path and distance fall-off
+- Current-position markers and playback highlight
+- Deferred: GPU bloom / cosmetic lensing matching CPU `PostProcessor`
 
 ## User-facing workflows
 
@@ -37,13 +54,14 @@ visualization/
 ├── Scene/          Scene graph, playback (multi-trajectory)
 ├── Camera/         Orbit / pan / zoom
 ├── Geometry/       Math, spherical→Cartesian, meshes
-├── Renderer/       Headless CPU rasterizer (Stage 3)
-├── Presentation/   VisualizationConfig + optional post-process
+├── Renderer/       TrajectoryRenderBackend, CPU rasterizer, Gpu/ polyline backend
+├── Presentation/   VisualizationConfig + optional post-process (CPU export)
 ├── IO/             PPM export, starfield (visualization/resources/)
-├── Apps/           ViewerApp + DisplayBlit (penrose_glad)
+├── Apps/           ViewerApp (GPU) + DisplayBlit window helper (penrose_glad)
 ├── scientific/     Compatibility shims → physics/analysis/
 └── Tests/          Unit tests (`-DPENROSE_BUILD_TESTS=ON`)
 
+visualization_gpu   (CMake static lib) GpuPolylineBackend — viewer only
 run/adapter/        SimulationResult → StoredTrajectory bridge (linked by viewer/export)
 ```
 
@@ -70,3 +88,5 @@ Rules:
 - Trajectories are immutable after adaptation.
 - Viewer and export entry points never load CSV.
 - Benchmark analysis lives in `physics/analysis/` (not presentation).
+- `realtime/` is not a dependency of visualization GPU code.
+- Prefer tilted camera yaw/pitch under `auto_frame` so equatorial orbits are not edge-on.

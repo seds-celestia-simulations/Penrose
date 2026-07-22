@@ -2,7 +2,8 @@
 
 > **Note (documentation status):** This is a long-form science and implementation walkthrough.
 > Mathematical explanations remain useful. Directory and executable layout assumptions may be
-> dated relative to the current tree (`run/`, `realtime/core`, three-stage CPU visualization).
+> dated relative to the current tree (`run/`, `realtime/core`, dual Stage 3 trajectory backends:
+> GPU viewer + CPU export, `physics/analysis/`).
 > For current architecture and workflows, see [`../ARCHITECTURE.md`](../ARCHITECTURE.md),
 > [`../RUNNING.md`](../RUNNING.md), and [`../VISUALIZATION_GUIDE.md`](../VISUALIZATION_GUIDE.md).
 

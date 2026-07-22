@@ -116,6 +116,7 @@ set(VISUALIZATION_SOURCES
     visualization/Scene/SceneBuilder.cpp
     visualization/Camera/Camera.cpp
     visualization/Renderer/Framebuffer.cpp
+    visualization/Renderer/CpuRasterizerBackend.cpp
     visualization/Renderer/CPURasterizer.cpp
     visualization/Presentation/PresentationProfile.cpp
     visualization/Presentation/PresentationDefaults.cpp
@@ -137,10 +138,25 @@ target_include_directories(visualization
 target_compile_definitions(visualization PRIVATE PENROSE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 target_link_libraries(visualization PUBLIC Eigen3::Eigen penrose_shared)
 
+# 9b. GPU trajectory backend (viewer only — no OpenGL in headless export)
+set(VISUALIZATION_GPU_SOURCES
+    visualization/Renderer/Gpu/GpuShaderProgram.cpp
+    visualization/Renderer/Gpu/GpuMeshBuffers.cpp
+    visualization/Renderer/Gpu/GpuPolylineBackend.cpp
+)
+
+add_library(visualization_gpu STATIC ${VISUALIZATION_GPU_SOURCES})
+target_include_directories(visualization_gpu
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/visualization
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_compile_definitions(visualization_gpu PRIVATE PENROSE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_link_libraries(visualization_gpu PUBLIC visualization penrose_glad)
+
 # 10. Interactive viewer — configure in run/viewer/main.cpp, then run
 #     ./build/visualization_viewer
 #     Integrates trajectories in memory (no CSV).
-option(PENROSE_BUILD_VIEWER "Build interactive CPU visualization viewer" ON)
+option(PENROSE_BUILD_VIEWER "Build interactive GPU trajectory viewer" ON)
 if(PENROSE_BUILD_VIEWER)
     add_executable(visualization_viewer
         run/viewer/main.cpp
@@ -150,7 +166,7 @@ if(PENROSE_BUILD_VIEWER)
     )
     target_include_directories(visualization_viewer
         PRIVATE physics visualization run ${CMAKE_SOURCE_DIR})
-    target_link_libraries(visualization_viewer PRIVATE visualization penrose_physics glfw penrose_glad)
+    target_link_libraries(visualization_viewer PRIVATE visualization visualization_gpu penrose_physics glfw penrose_glad)
 endif()
 
 # 11. Headless export — configure in run/export/main.cpp, then run

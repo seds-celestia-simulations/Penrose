@@ -2,18 +2,18 @@
 
 This guide covers how to install dependencies and run each Penrose pipeline:
 
-1. **GPU real-time interactive engine** (`Penrose`)
+1. **GPU real-time ray-march engine** (`Penrose`)
 2. **Frame capture** and **PPM → video** utilities
 3. **CPU physics benchmarking** (`physics_benchmark`)
-4. **CPU trajectory viewer / export** (`visualization_viewer`, `visualization_export`)
+4. **Trajectory viewer / export** (`visualization_viewer`, `visualization_export`)
 
 | Pipeline | Location | Executable / tool |
 |---|---|---|
-| GPU real-time | `realtime/` | `Penrose` |
+| GPU real-time ray march | `realtime/` | `Penrose` |
 | CPU scientific | `physics/` + `run/benchmark/` | `physics_benchmark` |
-| CPU visualization | `visualization/` + `run/viewer|export/` | `visualization_viewer`, `visualization_export` |
+| Trajectory visualization | `visualization/` + `run/viewer|export/` | `visualization_viewer` (GPU), `visualization_export` (CPU) |
 
-Architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md) · CPU viz UX: [`VISUALIZATION_GUIDE.md`](VISUALIZATION_GUIDE.md).
+Architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md) · Trajectory viz UX: [`VISUALIZATION_GUIDE.md`](VISUALIZATION_GUIDE.md).
 
 ---
 
@@ -31,7 +31,7 @@ Architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md) · CPU viz UX: [`VISUALIZATIO
 
 Declared C++ dependencies (`vcpkg.json`): `glfw3`, `glad`, `glm`, `eigen3`.
 
-GLAD for the GPU app is built from `realtime/gpu/`. The CPU viewer uses a neutral copy under `vendor/glad/` (`penrose_glad` target). GLFW is fetched by CMake if needed.
+GLAD for the GPU ray-march app is built from `realtime/gpu/`. The trajectory viewer uses a neutral copy under `vendor/glad/` (`penrose_glad` target) and must not include `realtime/`. GLFW is fetched by CMake if needed.
 
 ### Install vcpkg
 
@@ -201,7 +201,7 @@ ffmpeg -framerate 30 -pattern_type glob \
   -c:v libx264 -pix_fmt yuv420p output.mp4
 ```
 
-> CPU export PPMs (`outputs/rendered_frames/`) are a different tree from GPU `imagesequence/`. The helper above targets GPU capture sessions.
+> Trajectory-export PPMs (`outputs/rendered_frames/` from `visualization_export`) are a different tree from GPU ray-march `imagesequence/`. The helper above targets ray-march capture sessions.
 
 ---
 
@@ -265,23 +265,28 @@ Notebooks / figures land under `outputs/analysis/` and `outputs/validation_figur
 
 ---
 
-## 4. CPU Trajectory Viewer and Export
+## 4. Trajectory Viewer and Export
 
 Edit config in [`run/viewer/main.cpp`](../run/viewer/main.cpp) or [`run/export/main.cpp`](../run/export/main.cpp), then:
 
 ```bash
 cmake --build build --target visualization_viewer visualization_export
-./build/visualization_viewer
-./build/visualization_export
+./build/visualization_viewer   # GPU polyline backend (needs display + OpenGL)
+./build/visualization_export   # CPU rasterizer backend (headless PPM)
 ```
 
-Pipeline: `SimulationRequest`(s) → `run_all` → `prepare_scene_from_results` → viewer / PPM.
+Pipeline: `SimulationRequest`(s) → `run_all` → `prepare_scene_from_results` → Stage 3 backend.
+
+| Executable | Stage 3 backend | Notes |
+|------------|-----------------|-------|
+| `visualization_viewer` | `GpuPolylineBackend` (`visualization_gpu`) | Interactive; links `penrose_glad` + GLFW |
+| `visualization_export` | `CpuRasterizerBackend` | No OpenGL; writes `outputs/rendered_frames/` |
 
 Full walkthrough: [`VISUALIZATION_GUIDE.md`](VISUALIZATION_GUIDE.md).
 
 | Option | Default | Effect |
 |--------|---------|--------|
-| `PENROSE_BUILD_VIEWER` | `ON` | Build interactive viewer |
+| `PENROSE_BUILD_VIEWER` | `ON` | Build interactive GPU trajectory viewer |
 | `PENROSE_BUILD_TESTS` | `OFF` | Internal visualization unit tests |
 
 Export stills / sequences: `outputs/rendered_frames/<timestamp>/`.
@@ -292,14 +297,14 @@ Export stills / sequences: `outputs/rendered_frames/<timestamp>/`.
 
 | Goal | Command (after configure) |
 |---|---|
-| Build GPU visualizer | `cmake --build build` (Windows: add `--config Debug`) |
-| Run GPU visualizer | `./build/Penrose` or `build\Debug\Penrose.exe` |
+| Build GPU ray-march visualizer | `cmake --build build` (Windows: add `--config Debug`) |
+| Run GPU ray-march visualizer | `./build/Penrose` or `build\Debug\Penrose.exe` |
 | Build CPU benchmarks | `cmake --build build --target physics_benchmark` |
 | Run CPU benchmarks | `./build/physics_benchmark` or `build\Debug\physics_benchmark.exe` |
-| Build CPU viewer / export | `cmake --build build --target visualization_viewer visualization_export` |
-| Run CPU viewer | `./build/visualization_viewer` |
-| Run CPU export | `./build/visualization_export` |
-| PPM → video (GPU capture) | `python realtime/visualization/ppm_to_video.py` |
+| Build trajectory viewer / export | `cmake --build build --target visualization_viewer visualization_export` |
+| Run trajectory viewer (GPU) | `./build/visualization_viewer` |
+| Run trajectory export (CPU) | `./build/visualization_export` |
+| PPM → video (ray-march capture) | `python realtime/visualization/ppm_to_video.py` |
 
 ---
 
@@ -307,7 +312,7 @@ Export stills / sequences: `outputs/rendered_frames/<timestamp>/`.
 
 - [README.md](../README.md) — project overview
 - [ARCHITECTURE.md](ARCHITECTURE.md) — current architecture (sole reference)
-- [VISUALIZATION_GUIDE.md](VISUALIZATION_GUIDE.md) — CPU three-executable UX
-- [frame_capture/FRAME_CAPTURE.md](frame_capture/FRAME_CAPTURE.md) — GPU frame capture
+- [VISUALIZATION_GUIDE.md](VISUALIZATION_GUIDE.md) — trajectory visualization UX
+- [frame_capture/FRAME_CAPTURE.md](frame_capture/FRAME_CAPTURE.md) — GPU ray-march frame capture
 - [frame_capture/PPM_TO_VIDEO_README.md](frame_capture/PPM_TO_VIDEO_README.md) — PPM → video
 - [reviews/](reviews/) — historical architecture reviews

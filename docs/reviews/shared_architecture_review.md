@@ -1,7 +1,9 @@
 # Architectural Feasibility Review — Penrose
 
 > **Historical / non-normative.** Feasibility review of shared GR abstractions vs dual pipelines.
-> Does not describe the current `run/` entry points or three-stage CPU visualization pipeline.
+> Does not describe the current `run/` entry points or dual Stage 3 trajectory backends
+> (`GpuPolylineBackend` viewer / `CpuRasterizerBackend` export). Claims about GLAD ownership
+> and `examples/` paths are outdated.
 > Current reference: [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
 
 **Review type:** Architecture feasibility (no code changes, no runtime verification)  

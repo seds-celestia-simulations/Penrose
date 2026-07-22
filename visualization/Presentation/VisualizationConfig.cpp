@@ -50,12 +50,14 @@ void apply_camera_config(Camera& camera, const Scene& scene, const CameraConfig&
     camera.set_distance(std::clamp(max_radius * config.auto_frame_distance_scale,
                                    config.auto_frame_min_distance, config.auto_frame_max_distance));
 
-    if (dominant_sample.length_squared() > 1e-8f) {
-        const float yaw = std::atan2(dominant_sample.x, dominant_sample.z) + 3.14159265359f;
-        camera.set_angles(yaw, config.auto_frame_pitch);
-    } else {
-        camera.set_angles(config.yaw, config.auto_frame_pitch);
+    // Keep the configured yaw. Re-aiming from the farthest sample often places the
+    // camera in the equatorial (xy) orbital plane, collapsing orbits to a line.
+    // Pitch provides the tilted 3/4 view; a small yaw offset avoids a dead-on look.
+    float yaw = config.yaw;
+    if (std::abs(yaw) < 1e-4f && dominant_sample.length_squared() > 1e-8f) {
+        yaw = 0.65f;
     }
+    camera.set_angles(yaw, config.auto_frame_pitch);
 }
 
 Camera make_camera(const Scene& scene, const CameraConfig& config) {

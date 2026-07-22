@@ -3,6 +3,7 @@
 #include "../Geometry/Mesh.h"
 #include "../IO/StarfieldBackground.h"
 #include "HorizonProjection.h"
+#include "StarfieldGenerator.h"
 
 #include <algorithm>
 #include <cmath>
@@ -11,21 +12,6 @@
 namespace viz {
 
 namespace {
-
-std::uint32_t hash_u32(std::uint32_t x) {
-    x ^= x >> 16;
-    x *= 0x7feb352du;
-    x ^= x >> 15;
-    x *= 0x846ca68bu;
-    x ^= x >> 16;
-    return x;
-}
-
-float hash_unit(std::uint32_t seed, int i) {
-    return static_cast<float>(hash_u32(seed + static_cast<std::uint32_t>(i)) & 0xFFFFFFu) /
-           static_cast<float>(0xFFFFFFu);
-}
-
 
 void paint_absorbing_region(Framebuffer& framebuffer, const Camera& camera, float horizon_radius,
                             const HorizonScreen& horizon) {
@@ -174,27 +160,22 @@ void CPURasterizer::draw_starfield(const Camera& camera, Framebuffer& framebuffe
     const Vec3 cam_pos = camera.position();
     const float aspect = static_cast<float>(framebuffer.width()) / static_cast<float>(framebuffer.height());
     const Mat4 mvp = camera.view_projection(aspect);
+    
+    std::vector<Star> stars = StarfieldGenerator::generate_stars(seed, star_count);
 
-    for (int i = 0; i < star_count; ++i) {
-        const float u = hash_unit(seed, i * 3 + 0);
-        const float v = hash_unit(seed, i * 3 + 1);
-        const float w = hash_unit(seed, i * 3 + 2);
+    for (const Star& star : stars) {
+        const Vec3 pos = cam_pos + star.direction * 200.0f;
 
-        const float theta = u * 3.14159265359f * 2.0f;
-        const float phi = std::acos(2.0f * v - 1.0f);
-        const Vec3 dir(std::sin(phi) * std::cos(theta), std::sin(phi) * std::sin(theta), std::cos(phi));
-        const Vec3 pos = cam_pos + dir * 200.0f;
-
-        const ProjectedVertex pv = project_vertex(pos, mvp, dir);
+        const ProjectedVertex pv = project_vertex(pos, mvp, star.direction);
         if (pv.depth <= 0.0f || pv.depth >= 1.0f) {
             continue;
         }
 
-        const float brightness = 0.35f + 0.65f * w;
-        const Color4 color = Color4::from_float(brightness, brightness, 0.75f + 0.25f * w, 1.0f);
+        const float brightness = star.brightness;
+        const Color4 color = Color4::from_float(brightness, brightness, 0.75f + 0.25f * star.w, 1.0f);
         const int cx = static_cast<int>(pv.x * framebuffer.width());
         const int cy = static_cast<int>(pv.y * framebuffer.height());
-        const int radius = w > 0.92f ? 2 : 1;
+        const int radius = star.w > 0.92f ? 2 : 1;
         for (int dy = -radius; dy <= radius; ++dy) {
             for (int dx = -radius; dx <= radius; ++dx) {
                 framebuffer.set_pixel(cx + dx, cy + dy, color, pv.depth);

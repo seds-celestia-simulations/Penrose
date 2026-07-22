@@ -1,8 +1,7 @@
 #include "ViewerApp.h"
 
 #include "DisplayBlit.h"
-#include "../Presentation/PresentationPipeline.h"
-#include "../Renderer/Framebuffer.h"
+#include "../Renderer/Gpu/GpuPolylineBackend.h"
 
 #include <GLFW/glfw3.h>
 
@@ -16,11 +15,9 @@ namespace {
 struct ViewerState {
     Scene scene;
     Camera camera;
-    Framebuffer framebuffer;
-    PresentationPipeline pipeline;
+    GpuPolylineBackend backend;
     PresentationProfile profile{};
     RenderOptions render_options{};
-    DisplayBlit display;
     bool dragging = false;
     bool panning = false;
     double last_x = 0.0;
@@ -79,7 +76,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     if (state == nullptr) {
         return;
     }
-    state->framebuffer.resize(width, height);
+    state->backend.resize(width, height);
 }
 
 void process_keyboard(GLFWwindow* window, ViewerState& state, float dt) {
@@ -96,19 +93,30 @@ void process_keyboard(GLFWwindow* window, ViewerState& state, float dt) {
     space_was_down = space_down;
 
     if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
-        playback.time = std::max(0.0, playback.time - playback.duration * 0.01);
+        // ~8% of duration per second while held — incremental, not per-frame jumps.
+        const double step = playback.duration * 0.08 * static_cast<double>(std::min(dt, 0.05f));
+        playback.time = std::max(0.0, playback.time - step);
         playback.playing = false;
     }
     if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
-        playback.time = std::min(playback.duration, playback.time + playback.duration * 0.01);
+        const double step = playback.duration * 0.08 * static_cast<double>(std::min(dt, 0.05f));
+        playback.time = std::min(playback.duration, playback.time + step);
         playback.playing = false;
     }
-    if (glfwGetKey(window, GLFW_KEY_HOME) == GLFW_PRESS) {
+    static bool home_was_down = false;
+    static bool end_was_down = false;
+    const bool home_down = glfwGetKey(window, GLFW_KEY_HOME) == GLFW_PRESS;
+    const bool end_down = glfwGetKey(window, GLFW_KEY_END) == GLFW_PRESS;
+    if (home_down && !home_was_down) {
         playback.time = 0.0;
+        playback.playing = false;
     }
-    if (glfwGetKey(window, GLFW_KEY_END) == GLFW_PRESS) {
+    if (end_down && !end_was_down) {
         playback.time = playback.duration;
+        playback.playing = false;
     }
+    home_was_down = home_down;
+    end_was_down = end_down;
 
     if (playback.playing && !state.scene.trajectories().empty() && playback.duration > 0.0) {
         const float clamped_dt = std::min(dt, 0.05f);
@@ -145,7 +153,6 @@ int run_interactive_viewer(Scene scene, Camera camera, const VisualizationConfig
     state.camera = camera;
     state.profile = config.presentation;
     state.render_options = config.render;
-    state.framebuffer.resize(config.width, config.height);
 
     if (!state.scene.trajectories().empty()) {
         state.scene.playback().time = 0.0;
@@ -156,20 +163,21 @@ int run_interactive_viewer(Scene scene, Camera camera, const VisualizationConfig
     int fbw = config.width;
     int fbh = config.height;
     glfwGetFramebufferSize(window, &fbw, &fbh);
-    state.framebuffer.resize(fbw, fbh);
+
+    if (!state.backend.initialize()) {
+        std::cerr << "Failed to initialize GPU trajectory backend\n";
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        return 1;
+    }
+    state.backend.resize(fbw, fbh);
+    state.backend.upload_scene(state.scene);
 
     glfwSetWindowUserPointer(window, &state);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetCursorPosCallback(window, cursor_callback);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
-    if (!state.display.initialize()) {
-        std::cerr << "Failed to initialize display blit\n";
-        glfwDestroyWindow(window);
-        glfwTerminate();
-        return 1;
-    }
 
     print_controls();
 
@@ -186,9 +194,8 @@ int run_interactive_viewer(Scene scene, Camera camera, const VisualizationConfig
         process_keyboard(window, state, dt);
 
         glfwGetFramebufferSize(window, &fbw, &fbh);
-        if (fbw > 0 && fbh > 0 &&
-            (fbw != state.framebuffer.width() || fbh != state.framebuffer.height())) {
-            state.framebuffer.resize(fbw, fbh);
+        if (fbw > 0 && fbh > 0) {
+            state.backend.resize(fbw, fbh);
         }
 
         for (int key = GLFW_KEY_1; key <= GLFW_KEY_9; ++key) {
@@ -198,15 +205,13 @@ int run_interactive_viewer(Scene scene, Camera camera, const VisualizationConfig
         }
 
         const auto render_start = std::chrono::steady_clock::now();
-        state.pipeline.render(state.scene, state.camera, state.framebuffer, state.render_options,
-                              state.profile);
+        state.backend.render(state.scene, state.camera, state.render_options, state.profile);
         const auto render_end = std::chrono::steady_clock::now();
         const double render_ms =
             std::chrono::duration<double, std::milli>(render_end - render_start).count();
         render_ms_accum += render_ms;
         ++frame_count;
 
-        state.display.present(state.framebuffer, fbw, fbh);
         glfwSwapBuffers(window);
         glfwPollEvents();
 
@@ -214,19 +219,15 @@ int run_interactive_viewer(Scene scene, Camera camera, const VisualizationConfig
         if (window_s >= 1.0) {
             const double fps = static_cast<double>(frame_count) / window_s;
             const double avg_render_ms = render_ms_accum / static_cast<double>(frame_count);
-            std::cout << "[viz] " << state.framebuffer.width() << "x" << state.framebuffer.height()
-                      << "  fps=" << static_cast<int>(fps + 0.5) << "  render="
-                      << static_cast<int>(avg_render_ms + 0.5) << " ms/frame"
-                      << (state.profile.enabled && state.profile.lensing_strength > 0.0f ? " (lensing)"
-                                                                                        : "")
-                      << "\n";
+            std::cout << "[viz-gpu] " << fbw << "x" << fbh << "  fps=" << static_cast<int>(fps + 0.5)
+                      << "  render=" << static_cast<int>(avg_render_ms + 0.5) << " ms/frame\n";
             fps_window_start = now;
             frame_count = 0;
             render_ms_accum = 0.0;
         }
     }
 
-    state.display.shutdown();
+    state.backend.shutdown();
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;

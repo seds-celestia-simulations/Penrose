@@ -2,8 +2,8 @@
 
 A Python utility to convert PPM image sequences from the Penrose **GPU** frame capture feature into MP4 videos.
 
-> This targets `imagesequence/<timestamp>/` from the `Penrose` app (**P** key).
-> CPU export stills/sequences from `visualization_export` live under `outputs/rendered_frames/` and are a separate tree.
+> This targets `imagesequence/<timestamp>/` from the `Penrose` ray-march app (**P** key).
+> Trajectory-export stills/sequences from `visualization_export` live under `outputs/rendered_frames/` and are a separate tree.
 
 ## Features
 

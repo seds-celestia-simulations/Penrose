@@ -1,6 +1,6 @@
 # Penrose Visualization — User Guide
 
-CPU visualization exposes **three** production executables. Edit a `main.cpp` under `run/`, build, run. No CSV paths or CLI flags for viewer/export.
+Trajectory visualization exposes **three** production executables. Edit a `main.cpp` under `run/`, build, run. No CSV paths or CLI flags for viewer/export.
 
 Architecture overview: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
@@ -11,8 +11,8 @@ Architecture overview: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 | Executable | Config | Purpose |
 |------------|--------|---------|
 | `physics_benchmark` | [`run/benchmark/main.cpp`](../run/benchmark/main.cpp) | Validation → `outputs/benchmark_data/<timestamp>/` |
-| `visualization_viewer` | [`run/viewer/main.cpp`](../run/viewer/main.cpp) | Integrate in memory → interactive viewer |
-| `visualization_export` | [`run/export/main.cpp`](../run/export/main.cpp) | Integrate in memory → PPM still/sequence |
+| `visualization_viewer` | [`run/viewer/main.cpp`](../run/viewer/main.cpp) | Integrate in memory → interactive GPU viewer |
+| `visualization_export` | [`run/export/main.cpp`](../run/export/main.cpp) | Integrate in memory → CPU PPM still/sequence |
 
 ```text
 Open run/<workflow>/main.cpp
@@ -33,7 +33,9 @@ Trajectory storage (SimulationResult)
         ↓
 Visualization preparation (prepare_scene — pass-through today)
         ↓
-Rendering (viewer / PPM)
+Stage 3 rendering
+  ├── visualization_viewer  → GpuPolylineBackend (OpenGL)
+  └── visualization_export  → CpuRasterizerBackend (PPM)
 ```
 
 ### Three config layers
@@ -75,7 +77,7 @@ cmake --build build --target physics_benchmark visualization_viewer visualizatio
 
 | Option | Default | Effect |
 |--------|---------|--------|
-| `PENROSE_BUILD_VIEWER` | `ON` | Build interactive viewer |
+| `PENROSE_BUILD_VIEWER` | `ON` | Build interactive GPU trajectory viewer |
 | `PENROSE_BUILD_TESTS` | `OFF` | Internal unit tests |
 
 ---
@@ -106,6 +108,8 @@ cmake --build build --target visualization_viewer
 ./build/visualization_viewer
 ```
 
+The viewer renders prepared trajectories with `GpuPolylineBackend` (`visualization_gpu` static library): starfield, opaque horizon disc + glow ring, solid trails with distance fall-off, and markers. It does **not** run the CPU rasterizer each frame. Headless export uses `CpuRasterizerBackend` instead — see §3.
+
 `run/viewer/main.cpp` currently demonstrates **multiple independent null geodesics** overlaid in one scene.
 
 | Input | Action |
@@ -114,11 +118,12 @@ cmake --build build --target visualization_viewer
 | Middle drag | Pan |
 | Scroll | Zoom |
 | Space | Play / pause |
-| Left / Right | Scrub |
+| Left / Right | Scrub (~8% of duration per second while held) |
+| Home / End | Jump to start / end (edge-triggered) |
 | 1–9 | Select trajectory highlight |
 | Escape | Quit |
 
-Raise `playback_speed` or set `presentation.enabled = false` in `run/viewer/main.cpp` for responsiveness.
+Raise `playback_speed` in `run/viewer/main.cpp` to change play rate. Prefer a tilted `camera.yaw` / `auto_frame_pitch` so equatorial orbits are not viewed edge-on.
 
 ---
 
@@ -129,9 +134,11 @@ cmake --build build --target visualization_export
 ./build/visualization_export
 ```
 
+Uses `CpuRasterizerBackend` (`CPURasterizer` + optional `PostProcessor`) — no OpenGL or display required.
+
 `frame_count = 1` → still; `>1` → `frame_XXXXXX.ppm` under `outputs/rendered_frames/<timestamp>/`.
 
-GPU capture PPMs use a different tree (`imagesequence/`). Helpers: [`frame_capture/`](frame_capture/).
+GPU ray-march capture PPMs use a different tree (`imagesequence/`). Helpers: [`frame_capture/`](frame_capture/).
 
 ---
 
@@ -144,3 +151,4 @@ GPU capture PPMs use a different tree (`imagesequence/`). Helpers: [`frame_captu
 | Add another particle | Push another `SimulationRequest` into the `simulations` vector |
 | Benchmark CSVs missing | Run `./build/physics_benchmark` |
 | Build fails looking for `examples/` | Entry points live under `run/` — reconfigure CMake from a current checkout |
+| Orbit looks like a line | Increase `camera.auto_frame_pitch` / set a non-zero `camera.yaw` (tilted 3/4 view) |

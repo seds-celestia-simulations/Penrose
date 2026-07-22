@@ -34,7 +34,7 @@ int run_physics_benchmarks(const BenchmarkConfig& config) {
     const double rs = config.metric.mass;
 
     if (config.run_freefall) {
-        benchmark_freefall(rs, config.freefall.r0, config.freefall.dt);
+        benchmark_freefall(rs, config.freefall.r0, config.freefall.dt, config.freefall.max_steps);
     }
 
     if (config.run_orbital) {

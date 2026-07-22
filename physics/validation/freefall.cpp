@@ -14,13 +14,13 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-void benchmark_freefall(double rs, double r0, double dt) {
+void benchmark_freefall(double rs, double r0, double dt, int max_steps) {
     Simulation::SimulationConfig config;
     config.spacetime = Simulation::SpacetimeKind::Schwarzschild;
     config.scenario = Simulation::Scenario::RadialFreefall;
     config.geodesic = Simulation::GeodesicKind::Timelike;
     config.dt = dt;
-    config.max_steps = 100000;
+    config.max_steps = max_steps;
     config.horizon_safety_factor = 1.0;
     config.name = "freefall";
 
@@ -96,9 +96,9 @@ void benchmark_freefall(double rs, double r0, double dt) {
         }
     }
 
-    if (history.size() == 100000 + 1) {
+    if (history.size() == max_steps + 1) {
         const State& last_state = history.back();
-        std::cout << "TERMINATED: Reached 100k steps. r is currently: " << last_state.X[1] << "\n";
+        std::cout << "TERMINATED: Reached max steps. r is currently: " << last_state.X[1] << "\n";
     }
 
     csv.close();

@@ -1,3 +1,3 @@
 #pragma once
 
-void benchmark_freefall(double rs, double r0, double dt);
+void benchmark_freefall(double rs, double r0, double dt, int max_steps);

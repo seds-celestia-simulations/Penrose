@@ -19,6 +19,7 @@ struct BenchmarkConfig {
     struct FreefallCase {
         double r0 = 10.0;
         double dt = 0.001;
+        int max_steps = 100000;
     } freefall;
 
     struct OrbitalCase {

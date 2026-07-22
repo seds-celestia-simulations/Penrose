@@ -4,7 +4,7 @@
 
 The frame capture feature records sequences of GPU-rendered frames to disk. Useful for animations, debugging visualizations, or generating video sequences.
 
-This documents the **GPU** (`Penrose`) capture path. CPU export PPMs go to `outputs/rendered_frames/` via `visualization_export` — a separate workflow.
+This documents the **GPU ray-march** (`Penrose`) capture path. Trajectory-export PPMs go to `outputs/rendered_frames/` via `visualization_export` (CPU `CpuRasterizerBackend`) — a separate workflow from both this capture path and the interactive `visualization_viewer`.
 
 ## How to Use
 

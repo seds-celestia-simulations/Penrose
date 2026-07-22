@@ -8,7 +8,7 @@
  *        ↓
  *   Visualization preparation (prepare_scene)
  *        ↓
- *   Rendering (PresentationPipeline → PPM)
+ *   Rendering (CpuRasterizerBackend → PPM)
  *
  *   cmake --build build --target visualization_export
  *   ./build/visualization_export
@@ -19,9 +19,8 @@
 #include "adapter/SimulationTrajectoryAdapter.h"
 #include "IO/OutputPaths.h"
 #include "IO/PpmWriter.h"
-#include "Presentation/PresentationPipeline.h"
 #include "Presentation/VisualizationConfig.h"
-#include "Renderer/Framebuffer.h"
+#include "Renderer/CpuRasterizerBackend.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -75,14 +74,15 @@ int main() {
     viz.scene.background = viz::Color4::rgb(2, 4, 12);
 
     viz.camera.auto_frame = true;
-    viz.camera.auto_frame_distance_scale = 1.2f;
-    viz.camera.auto_frame_min_distance = 7.0f;
+    viz.camera.auto_frame_distance_scale = 1.35f;
+    viz.camera.auto_frame_min_distance = 8.0f;
     viz.camera.auto_frame_max_distance = 120.0f;
-    viz.camera.auto_frame_pitch = 0.52f;
+    // Tilted 3/4 view — equatorial orbits live in xy; yaw keeps the camera off-plane.
+    viz.camera.auto_frame_pitch = 0.58f;
     viz.camera.fov_y = 0.95f;
     viz.camera.distance = 12.0f;
-    viz.camera.yaw = 0.0f;
-    viz.camera.pitch = 0.45f;
+    viz.camera.yaw = 0.65f;
+    viz.camera.pitch = 0.58f;
 
     viz.presentation.enabled = true;
     viz.presentation.lensing_strength = 0.07f;
@@ -125,8 +125,8 @@ int main() {
     viz::Scene scene = viz::prepare_scene_from_results(trajectories, viz);
     viz::Camera camera = viz::make_camera(scene, viz.camera);
 
-    viz::Framebuffer framebuffer(viz.width, viz.height);
-    viz::PresentationPipeline pipeline;
+    viz::CpuRasterizerBackend backend;
+    backend.resize(viz.width, viz.height);
 
     const auto repo_root = viz::detect_repo_root();
     const int frames = std::max(1, viz.frame_count);
@@ -146,7 +146,7 @@ int main() {
                                     (static_cast<double>(frame) / static_cast<double>(frames - 1));
         }
 
-        pipeline.render(scene, camera, framebuffer, viz.render, viz.presentation);
+        backend.render(scene, camera, viz.render, viz.presentation);
 
         std::string path;
         if (frames == 1) {
@@ -157,7 +157,7 @@ int main() {
             path = name;
         }
 
-        if (!viz::write_ppm(framebuffer, path)) {
+        if (!viz::write_ppm(backend.framebuffer(), path)) {
             std::cerr << "Failed to write " << path << "\n";
             return 1;
         }

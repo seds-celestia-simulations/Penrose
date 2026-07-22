@@ -2,7 +2,7 @@
 
 This is the **sole current architecture reference** for Penrose.
 
-Penrose is a modular General Relativity framework: a CPU reference geodesic solver, a CPU trajectory visualization stack, and a GPU real-time renderer. The design goal is to add new spacetimes (Kerr, SGL, FLRW, …) by extending physics modules—not by rewriting entry points or a catch-all config struct.
+Penrose is a modular General Relativity framework: a CPU reference geodesic solver, a trajectory visualization stack (GPU interactive viewer + headless CPU export), and a separate GPU real-time ray-march renderer. The design goal is to add new spacetimes (Kerr, SGL, FLRW, …) by extending physics modules—not by rewriting entry points or a catch-all config struct.
 
 ---
 
@@ -14,16 +14,16 @@ Penrose is a modular General Relativity framework: a CPU reference geodesic solv
            ┌───────────────┼───────────────┐
            ▼               ▼               ▼
    penrose_physics/  visualization/     realtime/
-     (CPU science)   (CPU presentation) (GPU interactive)
+     (CPU science)   (trajectory viz)   (GPU ray march)
 ```
 
 | Pipeline | Role | Truth for |
 |----------|------|-----------|
 | **physics/** | Analytic metrics, dynamics, RK4, trajectory solve, validation | Scientific correctness |
-| **visualization/** | Stored trajectories → preparation → scene → CPU raster → optional post-process | Publication / orbit illustrations |
+| **visualization/** | Stored trajectories → preparation → scene → Stage 3 render backends | Publication / orbit illustrations |
 | **realtime/** | OpenGL + GLSL null geodesic ray march | Interactive lensing imagery |
 
-Pipelines are intentionally loosely coupled. Visualization consumes stored `State` histories (never constructs metrics or solvers). Realtime does **not** yet share the CPU metric implementation; it remains a separate shader-resident path.
+Pipelines are intentionally loosely coupled. Visualization consumes stored `State` histories (never constructs metrics or solvers). Realtime does **not** share the CPU metric implementation; it remains a separate shader-resident path. Trajectory-viz GPU code (`visualization_gpu`) also does **not** include or link `realtime/`.
 
 ---
 
@@ -34,8 +34,8 @@ Three production executables. Each is configured by editing a small `main.cpp` u
 | Executable | Config | Role |
 |------------|--------|------|
 | `physics_benchmark` | [`run/benchmark/main.cpp`](../run/benchmark/main.cpp) | Validation suite → CSV under `outputs/benchmark_data/` |
-| `visualization_viewer` | [`run/viewer/main.cpp`](../run/viewer/main.cpp) | In-memory integrate → interactive viewer |
-| `visualization_export` | [`run/export/main.cpp`](../run/export/main.cpp) | In-memory integrate → PPM still/sequence |
+| `visualization_viewer` | [`run/viewer/main.cpp`](../run/viewer/main.cpp) | In-memory integrate → GPU polyline viewer |
+| `visualization_export` | [`run/export/main.cpp`](../run/export/main.cpp) | In-memory integrate → CPU PPM still/sequence |
 
 ```text
 SimulationRequest(s)          // one per independent particle
@@ -48,12 +48,12 @@ store_trajectories (run/adapter)  // consumer bridge — not in visualization li
         ↓
 prepare_scene                 // Stage 2: StoredTrajectory → Scene geometry
         ↓
-Viewer / Export               // Stage 3: rendering of prepared geometry
+Viewer / Export               // Stage 3: TrajectoryRenderBackend (GPU viewer / CPU export)
 ```
 
 Entry points never construct concrete metrics (`SchwarzschildMetric`, …). Metrics are created inside the simulation pipeline. Multiple particles are simulated independently and overlaid only in visualization preparation.
 
-GPU app: `./build/Penrose` — see [`RUNNING.md`](RUNNING.md).
+GPU ray-march app: `./build/Penrose` — see [`RUNNING.md`](RUNNING.md).
 
 ---
 
@@ -133,7 +133,7 @@ Built as the `penrose_physics` static library (`CMakeLists.txt`). CPU consumers 
 
 ---
 
-## 5. CPU visualization stack
+## 5. Trajectory visualization stack
 
 Three stages after physics:
 
@@ -146,9 +146,11 @@ prepare_scene(...)            // Stage 2: StoredTrajectory → Scene geometry
         ↓                     //   (interpolation / resampling hooks reserved)
 make_camera(...)
         ↓
-CPURasterizer / PostProcessor // Stage 3: prepared geometry only
+TrajectoryRenderBackend       // Stage 3: prepared geometry only
+  ├── GpuPolylineBackend      // interactive viewer (OpenGL; visualization_gpu)
+  └── CpuRasterizerBackend    // headless export (CPURasterizer + PostProcessor)
         ↓
-Viewer blit / PPM
+GLFW window / PPM
 ```
 
 | Module | Responsibility |
@@ -157,13 +159,24 @@ Viewer blit / PPM
 | `visualization/Trajectory/` | Chart-to-Cartesian `adapt_states` |
 | `visualization/Scene/` | Multi-trajectory scene graph + playback |
 | `visualization/Camera/` | Orbit / pan / zoom |
-| `visualization/Renderer/` | CPU rasterizer + framebuffer |
-| `visualization/Presentation/` | `VisualizationConfig`, bloom / cosmetic lensing |
-| `visualization/Apps/` | `ViewerApp`, `DisplayBlit` (links neutral `penrose_glad`, not `realtime/`) |
+| `visualization/Renderer/` | `TrajectoryRenderBackend`, CPU rasterizer, `Gpu/` polyline backend |
+| `visualization/Presentation/` | `VisualizationConfig`, bloom / cosmetic lensing (CPU export path) |
+| `visualization/Apps/` | `ViewerApp` (GPU backend), `DisplayBlit` GLFW/GLAD window helper |
 | `visualization/IO/` | PPM writer, output paths, starfield from `visualization/resources/` |
 | `run/adapter/` | `store_trajectories`, `prepare_scene_from_results` (physics→viz bridge) |
 
 The renderer never cares which integrator, spacetime, or step count produced a curve. Multiple independently simulated trajectories are overlaid into one `Scene`.
+
+**Stage 3 backends:**
+
+| Backend | Library / target | Used by | Output |
+|---------|------------------|---------|--------|
+| `GpuPolylineBackend` | `visualization_gpu` (viewer only) | `visualization_viewer` | OpenGL draw into GLFW framebuffer |
+| `CpuRasterizerBackend` | `visualization` | `visualization_export` | `Framebuffer` → PPM (no OpenGL) |
+
+GPU trajectory shaders and buffers live under `visualization/Renderer/Gpu/` (embedded sources). They are not shared with `realtime/`. Interactive viewer v1 draws starfield, opaque horizon disc + glow ring, solid trails with distance fall-off, and markers. CPU export retains optional `PostProcessor` bloom / cosmetic lensing; GPU bloom parity is deferred.
+
+`auto_frame` distances the camera from scene extent and uses a tilted yaw/pitch (not edge-on to equatorial orbits). Playback scrub in the viewer advances at a time-based rate (~8% of duration per second while Left/Right are held).
 
 Scene horizon radius is geometric (not a metric type):
 
@@ -206,20 +219,20 @@ Docs: [`frame_capture/`](frame_capture/).
 penrose/
 ├── run/
 │   ├── benchmark/main.cpp      → physics_benchmark
-│   ├── viewer/main.cpp         → visualization_viewer
-│   ├── export/main.cpp         → visualization_export
+│   ├── viewer/main.cpp         → visualization_viewer (GPU Stage 3)
+│   ├── export/main.cpp         → visualization_export (CPU Stage 3)
 │   └── adapter/                → SimulationResult → StoredTrajectory bridge
 ├── physics/                    # CPU reference solver (+ analysis Python)
-├── visualization/              # CPU presentation renderer only
-├── realtime/                   # GPU interactive renderer (unchanged)
+├── visualization/              # Trajectory presentation (CPU export + GPU viewer)
+├── realtime/                   # GPU ray-march product (independent)
 ├── shared/                     # GR vocabulary (State, MetricKind, parameters)
-├── vendor/glad/                # Neutral OpenGL loader for CPU viewer
+├── vendor/glad/                # Neutral OpenGL loader for trajectory viewer
 ├── outputs/                    # Generated CSVs, figures, PPMs, notebooks
 ├── docs/
 │   ├── ARCHITECTURE.md         # this file (current)
 │   ├── RUNNING.md              # install / run all pipelines
-│   ├── VISUALIZATION_GUIDE.md  # CPU three-executable UX
-│   ├── frame_capture/          # GPU capture helpers
+│   ├── VISUALIZATION_GUIDE.md  # trajectory viz three-executable UX
+│   ├── frame_capture/          # GPU ray-march capture helpers
 │   ├── reviews/                # historical architecture reviews
 │   └── reports/                # long-form science notes (historical layout)
 ├── notes/                      # working notes / screenshots
@@ -236,9 +249,10 @@ penrose/
 4. **Particles do not couple.** Independent `SimulationRequest`s; overlay only in `prepare_scene`.
 5. **Visualization never mutates physics state.** Trajectories are immutable after adaptation. The visualization library does not include physics headers.
 6. **Presentation ≠ GR.** Screen-space lensing / bloom are cosmetic.
-7. **CPU solver is the reference.** GPU shader math is for interaction until shared abstractions catch up.
+7. **CPU solver is the reference.** Realtime ray-march and trajectory-viz GPU drawing are for interaction / presentation until shared abstractions catch up.
 8. **Preserve validated math.** Architecture changes extract modules; they do not silently rewrite Christoffel formulas.
-9. **Ownership boundaries:** `shared/` = vocabulary; `physics/` (`penrose_physics`) = CPU science; `visualization/` = presentation; `physics/analysis/` = benchmark analysis consumers; `realtime/` = GPU engine (independent).
+9. **Ownership boundaries:** `shared/` = vocabulary; `physics/` (`penrose_physics`) = CPU science; `visualization/` (+ `visualization_gpu` for the viewer) = presentation; `physics/analysis/` = benchmark analysis; `realtime/` = ray-march engine (independent).
+10. **OpenGL stays out of headless export.** Only `visualization_viewer` links `visualization_gpu` / `penrose_glad` / GLFW for trajectory viz.
 
 ---
 
@@ -259,8 +273,8 @@ No structural change to viewer, export, or benchmark executables.
 |----------|--------|
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | **Current** — this file |
 | [`RUNNING.md`](RUNNING.md) | **Current** — build / run all pipelines |
-| [`VISUALIZATION_GUIDE.md`](VISUALIZATION_GUIDE.md) | **Current** — CPU UX |
-| [`frame_capture/`](frame_capture/) | **Current** — GPU capture |
-| [`../visualization/README.md`](../visualization/README.md) | **Current** — CPU viz module |
+| [`VISUALIZATION_GUIDE.md`](VISUALIZATION_GUIDE.md) | **Current** — trajectory viz UX |
+| [`frame_capture/`](frame_capture/) | **Current** — GPU ray-march capture |
+| [`../visualization/README.md`](../visualization/README.md) | **Current** — visualization module |
 | [`reports/Penrose_from_First_Principles.md`](reports/Penrose_from_First_Principles.md) | Science walkthrough (layout assumptions may be dated) |
 | [`reviews/`](reviews/) | **Historical** reviews (not normative) |
