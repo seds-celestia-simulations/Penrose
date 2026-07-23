@@ -49,7 +49,10 @@ add_executable(Penrose
     realtime/core/Window.cpp
     realtime/core/Framebuffer.cpp
     realtime/core/Engine.cpp
+    realtime/core/ShaderManager.cpp
     realtime/render/Renderer.cpp
+    realtime/render/GeodesicPass.cpp
+    realtime/render/UpscalePass.cpp
     realtime/scene/ParticleBuffer.cpp
     realtime/spacetime/LutBaker.cpp
     realtime/spacetime/AccretionDisk.cpp

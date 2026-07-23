@@ -23,6 +23,9 @@ public:
      int renderWidth, int renderHeight, bool blackHolePass, bool highQualityPass);
 
     void updateParticles(const std::vector<Particle>& particles);
+    void bindParticleBuffer(unsigned int bindingPoint);
+    size_t getParticleCount() const;
+    void drawQuad();
     
     bool captureFrame(const std::string& filePath, GLFWwindow* window);
 };

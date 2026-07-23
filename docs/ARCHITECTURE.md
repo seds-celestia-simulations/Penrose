@@ -194,7 +194,7 @@ Internal unit tests: `-DPENROSE_BUILD_TESTS=ON` (default **OFF**).
 ## 6. GPU realtime stack
 
 ```text
-Engine → Window / Camera → Renderer → GLSL fragment ray march → framebuffer
+Engine → ShaderManager → RenderPass pipeline → GLSL fragment ray march → framebuffer
                 ↘ FrameCapture (P key) → imagesequence/<timestamp>/
 ```
 
@@ -203,11 +203,19 @@ Owned under `realtime/`. Independent build target `Penrose`.
 | Area | Location |
 |------|----------|
 | Engine / window / capture | `realtime/core/` |
-| Renderer | `realtime/render/` |
-| Camera / particles | `realtime/scene/` |
-| Spacetime FX helpers | `realtime/spacetime/` |
+| ShaderManager (metric loading, caching, switching) | `realtime/core/ShaderManager.h/.cpp` |
+| RenderPass pipeline (GeodesicPass, UpscalePass) | `realtime/render/` |
+| Renderer (fullscreen quad, particle SSBO) | `realtime/render/Renderer.h/.cpp` |
+| Camera / particles / ParticleSystem interface | `realtime/scene/` |
+| Spacetime FX helpers (LutBaker, AccretionDisk) | `realtime/spacetime/` |
 | Shaders / resources | `realtime/shaders/`, `realtime/resources/` |
 | PPM → video script | `realtime/visualization/ppm_to_video.py` |
+
+**RenderPass pipeline:** Engine holds `vector<unique_ptr<RenderPass>>`. Each pass receives a `PassContext` (camera, time, dimensions, textures) and executes independently. `GeodesicPass` handles the fullscreen quad draw with the active metric shader. `UpscalePass` is a placeholder for future foveated rendering.
+
+**ShaderManager:** Manages metric shader registration, lazy compilation, caching, and runtime switching. Metrics are registered via `loadMetric(type, vertPath, fragPath)` and switched via `setMetric(type)`.
+
+**ParticleSystem:** Polymorphic interface implemented by `FallingParticleSystem` (set `rs` via `setRs()`) and `AccretionDisk` (returns `Particle` directly). Engine iterates all systems to merge particles into a single SSBO.
 
 Docs: [`frame_capture/`](frame_capture/).
 

@@ -7,11 +7,13 @@
 #include <vector>
 #include <random>
 
-#include "core/Shader.h"
+#include "core/ShaderManager.h"
 #include "core/Window.h"
 #include "scene/Camera.h"
 #include "core/Texture.h"
 #include "render/Renderer.h"
+#include "render/GeodesicPass.h"
+#include "render/UpscalePass.h"
 #include "scene/Particle.h"
 #include "core/FrameCapture.h"
 #include "core/Framebuffer.h"
@@ -98,37 +100,43 @@ void Engine::initAssets() {
     lutData.clear();
 
     skyboxTexture = loadTexture("resources/starfield_original.jpg");
-    blackHoleShader = std::make_unique<Shader>("shaders/quad.vert", "shaders/reduced.frag");
-    
-    blackHoleShader->use();
-    blackHoleShader->setInt("skybox", 0);
-    blackHoleShader->setInt("uGeodesicLUT", 1);
+
+    shaderManager = std::make_unique<ShaderManager>();
+    shaderManager->loadMetric(MetricType::SCHWARZSCHILD_REDUCED, "shaders/quad.vert", "shaders/reduced.frag");
+    shaderManager->loadMetric(MetricType::SCHWARZSCHILD_FULL, "shaders/quad.vert", "shaders/quad.frag");
+    shaderManager->setMetric(MetricType::SCHWARZSCHILD_REDUCED);
+
+    Shader* activeShader = shaderManager->getActive();
+    if (activeShader) {
+        activeShader->use();
+        activeShader->setInt("skybox", 0);
+        activeShader->setInt("uGeodesicLUT", 1);
+    }
 
     renderer = std::make_unique<Renderer>();
     frameCapture = std::make_unique<FrameCapture>();
-    particleBuffer = std::make_unique<ParticleBuffer>();
+
     accretionDisk = std::make_unique<Physics::AccretionDisk>(10);
     fallingSystem = std::make_unique<FallingParticleSystem>();
+    fallingSystem->setRs(rs);
+
+    particleSystems.push_back(accretionDisk.get());
+    particleSystems.push_back(fallingSystem.get());
+
+    passes.push_back(std::make_unique<GeodesicPass>(*renderer, *shaderManager));
 }
 
 void Engine::update() {
-    accretionDisk->update(deltaTime);
-    fallingSystem->update(deltaTime, rs);
-
-    std::vector<Particle> renderPayload;
-    for (const auto& dp : accretionDisk->getParticles()) {
-        Particle p;
-        p.stateX = dp.position;
-        p.color = dp.color;
-        p.mass = dp.mass;
-        p.radius = dp.radius;
-        p.stateU = glm::vec4(0.0f);
-        renderPayload.push_back(p);
+    for (auto* ps : particleSystems) {
+        ps->update(deltaTime);
     }
 
-    const auto& drops = fallingSystem->getParticles();
-    renderPayload.insert(renderPayload.end(), drops.begin(), drops.end());
-    renderer->updateParticles(renderPayload); 
+    std::vector<Particle> renderPayload;
+    for (auto* ps : particleSystems) {
+        const auto& particles = ps->getParticles();
+        renderPayload.insert(renderPayload.end(), particles.begin(), particles.end());
+    }
+    renderer->updateParticles(renderPayload);
 }
 
 void Engine::render() {
@@ -139,11 +147,19 @@ void Engine::render() {
     glViewport(0, 0, w, h);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, geodesicLUT);
-
     float currentFrame = (float)glfwGetTime();
-    renderer->draw(*blackHoleShader, camera, skyboxTexture, currentFrame, w, h, true, false);
+
+    PassContext ctx {
+        camera,
+        currentFrame,
+        w, h,
+        skyboxTexture,
+        geodesicLUT
+    };
+
+    for (auto& pass : passes) {
+        pass->execute(ctx);
+    }
 }
 
 void Engine::run() {

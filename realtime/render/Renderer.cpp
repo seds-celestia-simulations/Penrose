@@ -70,6 +70,19 @@ void Renderer::updateParticles(const std::vector<Particle>& particles) {
     particleBuffer.uploadParticles(particles);
 }
 
+void Renderer::bindParticleBuffer(unsigned int bindingPoint) {
+    particleBuffer.bind(bindingPoint);
+}
+
+size_t Renderer::getParticleCount() const {
+    return particleBuffer.getParticleCount();
+}
+
+void Renderer::drawQuad() {
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+}
+
 bool Renderer::captureFrame(const std::string& filePath, GLFWwindow* window) {
     int width, height;
     glfwGetFramebufferSize(window, &width, &height);

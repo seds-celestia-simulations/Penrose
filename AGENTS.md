@@ -18,7 +18,7 @@ They share only `shared/` (GR type definitions). They do NOT share code or link 
 ## Build (Windows)
 
 ```powershell
-cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=D:\dev\cpp\tools\vcpkg\scripts\buildsystems\vcpkg.cmake
+cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=path\to\vcpkg.cmake
 cmake --build build --config Debug
 ```
 
@@ -42,8 +42,8 @@ physics/                 # CPU scientific pipeline
   validation/            # Benchmark tests (orbital, freefall, null_geodesic)
 
 realtime/                # GPU real-time engine
-  core/                  # Engine, Window, Shader, Texture, Framebuffer, FrameCapture
-  render/                # Renderer (fullscreen quad), RenderPass interface
+  core/                  # Engine, Window, Shader, ShaderManager, Texture, Framebuffer, FrameCapture
+  render/                # Renderer (fullscreen quad), RenderPass, GeodesicPass, UpscalePass
   scene/                 # Camera, Particle, ParticleBuffer, ParticleSystem interface
   spacetime/             # LutBaker, AccretionDisk
   shaders/               # GLSL shaders (see shader conventions below)
@@ -86,10 +86,12 @@ penrose_shared (header-only)
 | Area | Read first |
 |------|-----------|
 | Any type that crosses modules | `shared/` headers |
-| Adding a new metric | `docs/architecture/realtime_modularization_plan.md` (Phase 3) |
+| Adding a new metric | Create `.glsl` in `realtime/shaders/metrics/`, register in `Engine::initAssets()` via `shaderManager->loadMetric()` |
 | Modifying physics solver | `physics/simulation/TrajectorySolver.h`, `physics/geodesics/GeodesicDynamics.h` |
-| Modifying GPU rendering | `realtime/render/Renderer.h`, `realtime/core/Engine.cpp` |
+| Modifying GPU rendering | `realtime/render/Renderer.h`, `realtime/core/Engine.cpp`, `realtime/render/GeodesicPass.cpp` |
 | Modifying GLSL shaders | `realtime/shaders/` (see shader conventions below) |
+| Adding a new render pass | `realtime/render/RenderPass.h` (interface), create new `*Pass.h/.cpp` in `realtime/render/`, add to `Engine::passes` in `initAssets()` |
+| Adding a new metric | Create `.glsl` in `realtime/shaders/metrics/`, register in `Engine::initAssets()` via `shaderManager->loadMetric()` |
 | CPU visualization pipeline | `visualization/Presentation/PresentationPipeline.h` |
 | CMake changes | `CMakeLists.txt` (top-level) — never create cross-module links |
 
@@ -101,6 +103,29 @@ penrose_shared (header-only)
 - `quad.frag` — full Christoffel-symbol RK4 ray marching (500 steps, per-pixel integration)
 - All fragment shaders are compiled standalone (no `#include` across shader files yet — see Phase 3 plan for modularization)
 - Resource paths in `Engine.cpp::initAssets()` must match the CMake `POST_BUILD` copy destinations: `shaders/` and `resources/` (NOT `realtime/shaders/`)
+
+## RenderPass pipeline
+
+- `RenderPass` (interface) — `execute(PassContext&)`, `name()`
+- `GeodesicPass` — fullscreen quad draw with metric shader from ShaderManager, handles camera/LUT/skybox uniforms and particle SSBO binding
+- `UpscalePass` — placeholder for future foveated rendering
+- Engine holds `vector<unique_ptr<RenderPass>> passes`, iterates in `render()`
+- `PassContext` carries camera, time, dimensions, textures to each pass
+
+## ParticleSystem interface
+
+- `ParticleSystem` (interface) — `update(float dt)`, `getParticles() const`
+- `FallingParticleSystem` implements `ParticleSystem` (set `rs` via `setRs()`)
+- `AccretionDisk` implements `ParticleSystem` (returns `Particle` directly)
+- Engine holds `vector<ParticleSystem*> particleSystems` for polymorphic iteration
+
+## ShaderManager
+
+- Manages metric shader loading, caching, and switching
+- `loadMetric(type, vertPath, fragPath)` — register a metric's shader paths
+- `setMetric(type)` — switch active metric (lazy-compile on first use)
+- `getActive()` — returns current `Shader*`
+- `reloadAll()` — recompiles all cached shaders from disk
 
 ## C++ conventions
 
