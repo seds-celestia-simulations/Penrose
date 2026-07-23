@@ -32,23 +32,6 @@ public:
             fragmentCode = fShaderStream.str();
         }
         catch (std::ifstream::failure& e) {
-<<<<<<< Updated upstream
-        }
-
-        compile(vertexCode.c_str(), fragmentCode.c_str());
-    }
-
-    Shader(const char* vertexPath, const std::string& fragmentSource) {
-        std::string vertexCode;
-        std::ifstream vShaderFile(vertexPath);
-        if (vShaderFile.is_open()) {
-            std::stringstream vShaderStream;
-            vShaderStream << vShaderFile.rdbuf();
-            vertexCode = vShaderStream.str();
-        }
-
-        compile(vertexCode.c_str(), fragmentSource.c_str());
-=======
              std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ" << std::endl;
              std::cerr << "Attempted path: " << vertexPath << " or " << fragmentPath << std::endl;
         }
@@ -74,8 +57,10 @@ public:
         catch (std::ifstream::failure& e) {
             // std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ" << std::endl;
         }
+    }
 
-        const char* cShaderCode = computeCode.c_str();
+       Shader(const std::string& computeSource, bool isRawSource) {
+        const char* cShaderCode = computeSource.c_str();
         unsigned int compute;
 
         compute = glCreateShader(GL_COMPUTE_SHADER);
@@ -89,8 +74,8 @@ public:
         checkCompileErrors(ID, "PROGRAM");
 
         glDeleteShader(compute);
->>>>>>> Stashed changes
     }
+    
 
     void use() { glUseProgram(ID); }
 
@@ -111,11 +96,7 @@ public:
     }
 
 private:
-<<<<<<< Updated upstream
-    void compile(const char* vertexCode, const char* fragmentCode) {
-=======
         void compile(const char* vertexCode, const char* fragmentCode) {
->>>>>>> Stashed changes
         unsigned int vertex, fragment;
 
         vertex = glCreateShader(GL_VERTEX_SHADER);
@@ -137,10 +118,6 @@ private:
         glDeleteShader(vertex);
         glDeleteShader(fragment);
     }
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
     void checkCompileErrors(unsigned int shader, std::string type) {
         int success;
         char infoLog[1024];

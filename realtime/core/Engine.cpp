@@ -112,20 +112,12 @@ void Engine::initAssets() {
     screenShader = std::make_unique<Shader>("realtime/shaders/common/screen.vert", "realtime/shaders/common/screen.frag");
 
     shaderManager = std::make_unique<ShaderManager>();
-<<<<<<< Updated upstream
-    shaderManager->loadMetric(MetricType::SCHWARZSCHILD_REDUCED,
-        "shaders/quad.vert",
-        "shaders/common/reduced_header.glsl",
-        "shaders/metrics/schwarzschild_reduced.glsl",
-        "shaders/common/reduced_main.glsl");
-    shaderManager->loadMetric(MetricType::SCHWARZSCHILD_FULL,
-        "shaders/quad.vert",
-        "shaders/common/quad_header.glsl",
-        "shaders/metrics/schwarzschild_full.glsl",
-        "shaders/common/quad_main.glsl");
-=======
-    shaderManager->loadMetricCompute(MetricType::SCHWARZSCHILD_REDUCED, "realtime/shaders/reduced.comp");
->>>>>>> Stashed changes
+    shaderManager->loadMetricCompute(
+        MetricType::SCHWARZSCHILD_REDUCED, 
+        "realtime/shaders/common/reduced_header.glsl", // 1. Header Path
+        "realtime/shaders/metrics/schwarzschild_reduced.glsl",                                            // 2. Metric Path (Empty if included in header)
+        "realtime/shaders/reduced.comp"                // 3. Main Compute Path
+    );
     shaderManager->setMetric(MetricType::SCHWARZSCHILD_REDUCED);
 
     Shader* activeShader = shaderManager->getActive();

@@ -48,11 +48,7 @@ std::string ShaderManager::resolveIncludes(const std::string& filePath, std::set
             size_t lastSlash = filePath.find_last_of("/\\");
             if (lastSlash != std::string::npos) {
                 dir = filePath.substr(0, lastSlash + 1);
-<<<<<<< Updated upstream
-            }
-=======
                       }
->>>>>>> Stashed changes
 
             std::string resolved = dir + includePath;
             result += resolveIncludes(resolved, visited);
@@ -60,25 +56,17 @@ std::string ShaderManager::resolveIncludes(const std::string& filePath, std::set
             result += line + "\n";
         }
     }
-<<<<<<< Updated upstream
-
-    return result;
-}
-
-void ShaderManager::loadMetric(MetricType type, const std::string& vertexPath,
-                               const std::string& headerPath, const std::string& metricPath,
-                               const std::string& mainPath) {
-    m_paths[type] = {vertexPath, headerPath, metricPath, mainPath};
-=======
        return result;
 }
 
-void ShaderManager::loadMetricCompute(MetricType type, const std::string& computePath) {
+void ShaderManager::loadMetricCompute(MetricType type, const std::string& headerPath, const std::string& metricPath, const std::string& computePath) {
     
+    m_paths[type].headerPath = headerPath;
+    m_paths[type].metricPath = metricPath;
     m_paths[type].computePath = computePath;
     
-    m_cache[type] = std::make_unique<Shader>(computePath.c_str());
->>>>>>> Stashed changes
+    // Erase any broken cache to force compileOrRetrieve to stitch them
+    m_cache.erase(type); 
 }
 
 void ShaderManager::setMetric(MetricType type) {
@@ -111,19 +99,37 @@ Shader* ShaderManager::compileOrRetrieve(MetricType type) {
 
     auto& p = pathsIt->second;
 
-    std::set<std::string> visited;
-    std::string header = resolveIncludes(p.headerPath, visited);
-    visited.clear();
-    std::string metric = resolveIncludes(p.metricPath, visited);
-    visited.clear();
-    std::string main = resolveIncludes(p.mainPath, visited);
+    if (!p.computePath.empty()) {
+        std::set<std::string> visited;
+        
+        std::string header = p.headerPath.empty() ? "" : resolveIncludes(p.headerPath, visited);
+        visited.clear();
+        std::string metric = p.metricPath.empty() ? "" : resolveIncludes(p.metricPath, visited);
+        visited.clear();
+        std::string computeMain = resolveIncludes(p.computePath, visited);
+        
+        std::string rawSource = "";
+        if (!header.empty()) rawSource += header + "\n";
+        if (!metric.empty()) rawSource += metric + "\n";
+        rawSource += computeMain;
 
-    std::string fragmentSource = header + "\n" + metric + "\n" + main + "\n";
+        size_t pos;
+        while ((pos = rawSource.find("#version")) != std::string::npos) {
+            size_t end = rawSource.find('\n', pos);
+            if (end == std::string::npos) end = rawSource.length();
+            rawSource.erase(pos, end - pos);
+        }
+        
+        std::string finalComputeSource = "#version 430 core\n" + rawSource;
+        
+        auto shader = std::make_unique<Shader>(finalComputeSource, true);
+        Shader* ptr = shader.get();
+        m_cache[type] = std::move(shader);
+        return ptr;
+    }
 
-    auto shader = std::make_unique<Shader>(p.vertexPath.c_str(), fragmentSource.c_str());
-    Shader* ptr = shader.get();
-    m_cache[type] = std::move(shader);
-    return ptr;
+    std::cerr << "ShaderManager: Compute path is missing for this metric!\n";
+    return nullptr;
 }
 
 void ShaderManager::setInt(const std::string& name, int value) const {
