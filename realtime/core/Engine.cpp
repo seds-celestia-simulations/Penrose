@@ -102,8 +102,16 @@ void Engine::initAssets() {
     skyboxTexture = loadTexture("resources/starfield_original.jpg");
 
     shaderManager = std::make_unique<ShaderManager>();
-    shaderManager->loadMetric(MetricType::SCHWARZSCHILD_REDUCED, "shaders/quad.vert", "shaders/reduced.frag");
-    shaderManager->loadMetric(MetricType::SCHWARZSCHILD_FULL, "shaders/quad.vert", "shaders/quad.frag");
+    shaderManager->loadMetric(MetricType::SCHWARZSCHILD_REDUCED,
+        "shaders/quad.vert",
+        "shaders/common/reduced_header.glsl",
+        "shaders/metrics/schwarzschild_reduced.glsl",
+        "shaders/common/reduced_main.glsl");
+    shaderManager->loadMetric(MetricType::SCHWARZSCHILD_FULL,
+        "shaders/quad.vert",
+        "shaders/common/quad_header.glsl",
+        "shaders/metrics/schwarzschild_full.glsl",
+        "shaders/common/quad_main.glsl");
     shaderManager->setMetric(MetricType::SCHWARZSCHILD_REDUCED);
 
     Shader* activeShader = shaderManager->getActive();

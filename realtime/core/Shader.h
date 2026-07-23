@@ -13,7 +13,6 @@ public:
     unsigned int ID;
 
     Shader(const char* vertexPath, const char* fragmentPath) {
-        // 1. Retrieve the vertex/fragment source code from filePath
         std::string vertexCode;
         std::string fragmentCode;
         std::ifstream vShaderFile;
@@ -33,36 +32,21 @@ public:
             fragmentCode = fShaderStream.str();
         }
         catch (std::ifstream::failure& e) {
-    // std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ" << std::endl;
-    // std::cerr << "Tried to open vertex path: " << vertexPath << std::endl;
-    // std::cerr << "Tried to open fragment path: " << fragmentPath << std::endl;
-}
+        }
 
-        const char* vShaderCode = vertexCode.c_str();
-        const char * fShaderCode = fragmentCode.c_str();
-        unsigned int vertex, fragment;
+        compile(vertexCode.c_str(), fragmentCode.c_str());
+    }
 
-        // 2. Compile shaders
-        vertex = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vertex, 1, &vShaderCode, NULL);
-        glCompileShader(vertex);
-        checkCompileErrors(vertex, "VERTEX");
+    Shader(const char* vertexPath, const std::string& fragmentSource) {
+        std::string vertexCode;
+        std::ifstream vShaderFile(vertexPath);
+        if (vShaderFile.is_open()) {
+            std::stringstream vShaderStream;
+            vShaderStream << vShaderFile.rdbuf();
+            vertexCode = vShaderStream.str();
+        }
 
-        fragment = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fragment, 1, &fShaderCode, NULL);
-        glCompileShader(fragment);
-        checkCompileErrors(fragment, "FRAGMENT");
-
-        // 3. Shader Program
-        ID = glCreateProgram();
-        glAttachShader(ID, vertex);
-        glAttachShader(ID, fragment);
-        glLinkProgram(ID);
-        checkCompileErrors(ID, "PROGRAM");
-
-        // Delete the shaders as they're linked into our program now
-        glDeleteShader(vertex);
-        glDeleteShader(fragment);
+        compile(vertexCode.c_str(), fragmentSource.c_str());
     }
 
     void use() { glUseProgram(ID); }
@@ -85,6 +69,29 @@ public:
     }
 
 private:
+    void compile(const char* vertexCode, const char* fragmentCode) {
+        unsigned int vertex, fragment;
+
+        vertex = glCreateShader(GL_VERTEX_SHADER);
+        glShaderSource(vertex, 1, &vertexCode, NULL);
+        glCompileShader(vertex);
+        checkCompileErrors(vertex, "VERTEX");
+
+        fragment = glCreateShader(GL_FRAGMENT_SHADER);
+        glShaderSource(fragment, 1, &fragmentCode, NULL);
+        glCompileShader(fragment);
+        checkCompileErrors(fragment, "FRAGMENT");
+
+        ID = glCreateProgram();
+        glAttachShader(ID, vertex);
+        glAttachShader(ID, fragment);
+        glLinkProgram(ID);
+        checkCompileErrors(ID, "PROGRAM");
+
+        glDeleteShader(vertex);
+        glDeleteShader(fragment);
+    }
+
     void checkCompileErrors(unsigned int shader, std::string type) {
         int success;
         char infoLog[1024];

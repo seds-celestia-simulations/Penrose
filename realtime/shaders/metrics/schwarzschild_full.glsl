@@ -1,4 +1,5 @@
-const float PI = 3.14159265359;
+#include "../common/skybox.glsl"
+
 const float rs = 0.25;
 const int N_STEPS = 500;
 

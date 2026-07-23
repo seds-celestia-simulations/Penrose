@@ -99,10 +99,38 @@ penrose_shared (header-only)
 
 - `#version 430 core` — GLSL 430, OpenGL 4.3 required
 - `quad.vert` — shared fullscreen quad vertex shader, used by all fragment shaders
-- `reduced.frag` — fast LUT-based ray marching (150 steps, alpha compositing)
-- `quad.frag` — full Christoffel-symbol RK4 ray marching (500 steps, per-pixel integration)
-- All fragment shaders are compiled standalone (no `#include` across shader files yet — see Phase 3 plan for modularization)
+- Shaders are assembled at runtime by ShaderManager from modular `.glsl` files
+- Use `#include "relative/path.glsl"` in any `.glsl` file — ShaderManager resolves includes recursively with circular-dependency protection
 - Resource paths in `Engine.cpp::initAssets()` must match the CMake `POST_BUILD` copy destinations: `shaders/` and `resources/` (NOT `realtime/shaders/`)
+
+### Module layout
+
+```
+shaders/
+  common/
+    reduced_header.glsl    # #version + uniforms for reduced metric
+    quad_header.glsl       # #version + uniforms for quad metric
+    particle.glsl          # Particle struct + SSBO + intersection helpers
+    noise.glsl             # hash, valueNoise, fBm
+    skybox.glsl            # DirectionToUV, PI constant
+    disk.glsl              # accumulateDisk (disk-ray intersection)
+    reduced_main.glsl      # main() for reduced orbit ray march
+    quad_main.glsl         # raymarch() + main() for full Christoffel
+  metrics/
+    schwarzschild_reduced.glsl  # orbit ODE (includes noise, skybox, disk)
+    schwarzschild_full.glsl     # Christoffel symbols (includes skybox)
+  quad.vert
+```
+
+### How assembly works
+
+ShaderManager concatenates: `header + metric + main`. Each file can `#include` other `.glsl` modules. Example:
+
+- `schwarzschild_reduced.glsl` includes `../common/noise.glsl`, `../common/skybox.glsl`, `../common/disk.glsl`
+- `schwarzschild_full.glsl` includes `../common/skybox.glsl` (provides PI)
+- Headers include `particle.glsl` (Particle struct + SSBO)
+
+Result is one GLSL string compiled via `glShaderSource`. The old assembled `reduced.frag` / `quad.frag` are kept as reference but are no longer the source of truth.
 
 ## RenderPass pipeline
 
@@ -122,10 +150,11 @@ penrose_shared (header-only)
 ## ShaderManager
 
 - Manages metric shader loading, caching, and switching
-- `loadMetric(type, vertPath, fragPath)` — register a metric's shader paths
+- `loadMetric(type, vertPath, headerPath, metricPath, mainPath)` — register a metric's shader parts
 - `setMetric(type)` — switch active metric (lazy-compile on first use)
 - `getActive()` — returns current `Shader*`
 - `reloadAll()` — recompiles all cached shaders from disk
+- `resolveIncludes(filePath, visited)` — recursively resolves `#include "path"` directives, protects against circular includes
 
 ## C++ conventions
 

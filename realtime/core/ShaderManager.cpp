@@ -1,14 +1,72 @@
 #include "core/ShaderManager.h"
+#include <fstream>
+#include <sstream>
 #include <iostream>
+#include <algorithm>
 
-void ShaderManager::loadMetric(MetricType type, const std::string& vertexPath, const std::string& fragmentPath) {
-    m_paths[type] = {vertexPath, fragmentPath};
+std::string ShaderManager::readFile(const std::string& filePath) {
+    std::ifstream file(filePath);
+    if (!file.is_open()) {
+        std::cerr << "ShaderManager: failed to open " << filePath << "\n";
+        return "";
+    }
+    std::stringstream ss;
+    ss << file.rdbuf();
+    return ss.str();
+}
+
+std::string ShaderManager::resolveIncludes(const std::string& filePath, std::set<std::string>& visited) {
+    if (visited.count(filePath)) {
+        std::cerr << "ShaderManager: circular include detected: " << filePath << "\n";
+        return "";
+    }
+    visited.insert(filePath);
+
+    std::string content = readFile(filePath);
+    if (content.empty()) return "";
+
+    std::string result;
+    std::istringstream stream(content);
+    std::string line;
+
+    while (std::getline(stream, line)) {
+        std::string trimmed = line;
+        trimmed.erase(0, trimmed.find_first_not_of(" \t"));
+
+        if (trimmed.rfind("#include", 0) == 0) {
+            size_t firstQuote = trimmed.find('"');
+            size_t lastQuote = trimmed.rfind('"');
+            if (firstQuote == std::string::npos || lastQuote == firstQuote) {
+                std::cerr << "ShaderManager: malformed #include: " << line << "\n";
+                result += line + "\n";
+                continue;
+            }
+
+            std::string includePath = trimmed.substr(firstQuote + 1, lastQuote - firstQuote - 1);
+
+            std::string dir;
+            size_t lastSlash = filePath.find_last_of("/\\");
+            if (lastSlash != std::string::npos) {
+                dir = filePath.substr(0, lastSlash + 1);
+            }
+
+            std::string resolved = dir + includePath;
+            result += resolveIncludes(resolved, visited);
+        } else {
+            result += line + "\n";
+        }
+    }
+
+    return result;
+}
+
+void ShaderManager::loadMetric(MetricType type, const std::string& vertexPath,
+                               const std::string& headerPath, const std::string& metricPath,
+                               const std::string& mainPath) {
+    m_paths[type] = {vertexPath, headerPath, metricPath, mainPath};
 }
 
 void ShaderManager::setMetric(MetricType type) {
-    if (m_paths.find(type) == m_paths.end()) {
-        std::cerr << "ShaderManager: metric not loaded, loading on set\n";
-    }
     m_activeMetric = type;
     compileOrRetrieve(type);
 }
@@ -22,7 +80,7 @@ Shader* ShaderManager::getActive() const {
 void ShaderManager::reloadAll() {
     m_cache.clear();
     for (auto& [type, paths] : m_paths) {
-        m_cache[type] = std::make_unique<Shader>(paths.vertexPath.c_str(), paths.fragmentPath.c_str());
+        compileOrRetrieve(type);
     }
 }
 
@@ -36,10 +94,18 @@ Shader* ShaderManager::compileOrRetrieve(MetricType type) {
         return nullptr;
     }
 
-    auto shader = std::make_unique<Shader>(
-        pathsIt->second.vertexPath.c_str(),
-        pathsIt->second.fragmentPath.c_str()
-    );
+    auto& p = pathsIt->second;
+
+    std::set<std::string> visited;
+    std::string header = resolveIncludes(p.headerPath, visited);
+    visited.clear();
+    std::string metric = resolveIncludes(p.metricPath, visited);
+    visited.clear();
+    std::string main = resolveIncludes(p.mainPath, visited);
+
+    std::string fragmentSource = header + "\n" + metric + "\n" + main + "\n";
+
+    auto shader = std::make_unique<Shader>(p.vertexPath.c_str(), fragmentSource.c_str());
     Shader* ptr = shader.get();
     m_cache[type] = std::move(shader);
     return ptr;
