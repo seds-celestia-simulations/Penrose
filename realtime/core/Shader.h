@@ -32,6 +32,7 @@ public:
             fragmentCode = fShaderStream.str();
         }
         catch (std::ifstream::failure& e) {
+<<<<<<< Updated upstream
         }
 
         compile(vertexCode.c_str(), fragmentCode.c_str());
@@ -47,11 +48,52 @@ public:
         }
 
         compile(vertexCode.c_str(), fragmentSource.c_str());
+=======
+             std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ" << std::endl;
+             std::cerr << "Attempted path: " << vertexPath << " or " << fragmentPath << std::endl;
+        }
+
+        const char* vShaderCode = vertexCode.c_str();
+        const char * fShaderCode = fragmentCode.c_str();
+        compile(vShaderCode, fShaderCode);
+    }
+
+    // Comp shader
+    Shader(const char* computePath) {
+        std::string computeCode;
+        std::ifstream cShaderFile;
+        
+        cShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+        try {
+            cShaderFile.open(computePath);
+            std::stringstream cShaderStream;
+            cShaderStream << cShaderFile.rdbuf();
+            cShaderFile.close();
+            computeCode = cShaderStream.str();
+        }
+        catch (std::ifstream::failure& e) {
+            // std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ" << std::endl;
+        }
+
+        const char* cShaderCode = computeCode.c_str();
+        unsigned int compute;
+
+        compute = glCreateShader(GL_COMPUTE_SHADER);
+        glShaderSource(compute, 1, &cShaderCode, NULL);
+        glCompileShader(compute);
+        checkCompileErrors(compute, "COMPUTE");
+
+        ID = glCreateProgram();
+        glAttachShader(ID, compute);
+        glLinkProgram(ID);
+        checkCompileErrors(ID, "PROGRAM");
+
+        glDeleteShader(compute);
+>>>>>>> Stashed changes
     }
 
     void use() { glUseProgram(ID); }
 
-    // Utility functions to pass data to the GPU
     void setFloat(const std::string &name, float value) const { 
         glUniform1f(glGetUniformLocation(ID, name.c_str()), value); 
     }
@@ -65,11 +107,15 @@ public:
         glUniform1i(glGetUniformLocation(ID, name.c_str()), value); 
     }
     void setBool(const std::string& name, bool value) const{
-    glUniform1i(glGetUniformLocation(ID, name.c_str()), (int)value);
+        glUniform1i(glGetUniformLocation(ID, name.c_str()), (int)value);
     }
 
 private:
+<<<<<<< Updated upstream
     void compile(const char* vertexCode, const char* fragmentCode) {
+=======
+        void compile(const char* vertexCode, const char* fragmentCode) {
+>>>>>>> Stashed changes
         unsigned int vertex, fragment;
 
         vertex = glCreateShader(GL_VERTEX_SHADER);
@@ -91,7 +137,10 @@ private:
         glDeleteShader(vertex);
         glDeleteShader(fragment);
     }
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
     void checkCompileErrors(unsigned int shader, std::string type) {
         int success;
         char infoLog[1024];

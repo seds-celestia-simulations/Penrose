@@ -27,6 +27,7 @@ Camera camera(glm::vec3(0.5f, 0.0f, 2.0f));
 float deltaTime = 0.0f; 
 float lastFrame = 0.0f; 
 bool firstMouse = true;
+float renderScale = 1.0f;
 
 Engine::Engine(unsigned int width, unsigned int height, const std::string& title)
     : width(width), height(height), rs(0.25f), 
@@ -90,6 +91,9 @@ void Engine::initAssets() {
     std::vector<float> lutData = Physics::LutBaker::bakeSchwarzschildLUT(config);
     std::cout << "LUT Bake Complete!\n";
 
+    int rw = static_cast<int>(width * renderScale);
+    int rh = static_cast<int>(height * renderScale);
+
     glGenTextures(1, &geodesicLUT);
     glBindTexture(GL_TEXTURE_2D, geodesicLUT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -99,9 +103,16 @@ void Engine::initAssets() {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, config.lutSize, config.lutSize, 0, GL_RGB, GL_FLOAT, lutData.data());
     lutData.clear();
 
-    skyboxTexture = loadTexture("resources/starfield_original.jpg");
+    skyboxTexture = loadTexture("realtime/resources/starfield_original.jpg");
+
+// 1. Initialize Renderer WITH DIMENSIONS for the compute texture
+    renderer = std::make_unique<Renderer>(rw, rh);
+    
+    // 2. Load the universal screen blit shader
+    screenShader = std::make_unique<Shader>("realtime/shaders/common/screen.vert", "realtime/shaders/common/screen.frag");
 
     shaderManager = std::make_unique<ShaderManager>();
+<<<<<<< Updated upstream
     shaderManager->loadMetric(MetricType::SCHWARZSCHILD_REDUCED,
         "shaders/quad.vert",
         "shaders/common/reduced_header.glsl",
@@ -112,6 +123,9 @@ void Engine::initAssets() {
         "shaders/common/quad_header.glsl",
         "shaders/metrics/schwarzschild_full.glsl",
         "shaders/common/quad_main.glsl");
+=======
+    shaderManager->loadMetricCompute(MetricType::SCHWARZSCHILD_REDUCED, "realtime/shaders/reduced.comp");
+>>>>>>> Stashed changes
     shaderManager->setMetric(MetricType::SCHWARZSCHILD_REDUCED);
 
     Shader* activeShader = shaderManager->getActive();
@@ -121,9 +135,7 @@ void Engine::initAssets() {
         activeShader->setInt("uGeodesicLUT", 1);
     }
 
-    renderer = std::make_unique<Renderer>();
     frameCapture = std::make_unique<FrameCapture>();
-
     accretionDisk = std::make_unique<Physics::AccretionDisk>(10);
     fallingSystem = std::make_unique<FallingParticleSystem>();
     fallingSystem->setRs(rs);
@@ -132,6 +144,7 @@ void Engine::initAssets() {
     particleSystems.push_back(fallingSystem.get());
 
     passes.push_back(std::make_unique<GeodesicPass>(*renderer, *shaderManager));
+    passes.push_back(std::make_unique<UpscalePass>(*renderer)); 
 }
 
 void Engine::update() {
@@ -152,17 +165,20 @@ void Engine::render() {
     glfwGetFramebufferSize(window, &w, &h);
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(0, 0, w, h);
     glClear(GL_COLOR_BUFFER_BIT);
 
     float currentFrame = (float)glfwGetTime();
+    int rw = static_cast<int>(w * renderScale);
+    int rh = static_cast<int>(h * renderScale);
 
     PassContext ctx {
         camera,
         currentFrame,
         w, h,
+        rw, rh,
         skyboxTexture,
-        geodesicLUT
+        geodesicLUT,
+        screenShader.get()
     };
 
     for (auto& pass : passes) {

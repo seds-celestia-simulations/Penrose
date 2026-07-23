@@ -27,6 +27,8 @@ private:
     void update();
     void render();
 
+    std::unique_ptr<Shader> screenShader;
+
     GLFWwindow* window;
     unsigned int width;
     unsigned int height;

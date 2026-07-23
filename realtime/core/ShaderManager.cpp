@@ -48,7 +48,11 @@ std::string ShaderManager::resolveIncludes(const std::string& filePath, std::set
             size_t lastSlash = filePath.find_last_of("/\\");
             if (lastSlash != std::string::npos) {
                 dir = filePath.substr(0, lastSlash + 1);
+<<<<<<< Updated upstream
             }
+=======
+                      }
+>>>>>>> Stashed changes
 
             std::string resolved = dir + includePath;
             result += resolveIncludes(resolved, visited);
@@ -56,6 +60,7 @@ std::string ShaderManager::resolveIncludes(const std::string& filePath, std::set
             result += line + "\n";
         }
     }
+<<<<<<< Updated upstream
 
     return result;
 }
@@ -64,6 +69,16 @@ void ShaderManager::loadMetric(MetricType type, const std::string& vertexPath,
                                const std::string& headerPath, const std::string& metricPath,
                                const std::string& mainPath) {
     m_paths[type] = {vertexPath, headerPath, metricPath, mainPath};
+=======
+       return result;
+}
+
+void ShaderManager::loadMetricCompute(MetricType type, const std::string& computePath) {
+    
+    m_paths[type].computePath = computePath;
+    
+    m_cache[type] = std::make_unique<Shader>(computePath.c_str());
+>>>>>>> Stashed changes
 }
 
 void ShaderManager::setMetric(MetricType type) {

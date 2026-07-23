@@ -1,13 +1,16 @@
 #pragma once
 #include <string>
 #include "scene/Camera.h"
+#include "core/Shader.h"
 
 struct PassContext {
     Camera& camera;
-    float time;
-    int width, height;
+    float currentFrame;
+    int windowWidth, windowHeight; 
+    int renderWidth, renderHeight;
     unsigned int skyboxTexture;
     unsigned int geodesicLUT;
+    Shader* screenShader;
 };
 
 class RenderPass {

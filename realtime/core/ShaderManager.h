@@ -16,11 +16,16 @@ public:
     ShaderManager() = default;
     ~ShaderManager() = default;
 
+<<<<<<< Updated upstream
     void setBasePath(const std::string& path) { m_basePath = path; }
     void loadMetric(MetricType type, const std::string& vertexPath,
                     const std::string& headerPath, const std::string& metricPath,
                     const std::string& mainPath);
+=======
+    void loadMetricCompute(MetricType type, const std::string& computePath);
+>>>>>>> Stashed changes
     void setMetric(MetricType type);
+     void setBasePath(const std::string& path) { m_basePath = path; }
     Shader* getActive() const;
     MetricType activeMetric() const { return m_activeMetric; }
     void reloadAll();
@@ -37,6 +42,7 @@ private:
         std::string headerPath;
         std::string metricPath;
         std::string mainPath;
+<<<<<<< Updated upstream
     };
 
     std::string m_basePath;
@@ -44,6 +50,17 @@ private:
     std::unordered_map<MetricType, std::unique_ptr<Shader>> m_cache;
     MetricType m_activeMetric = MetricType::SCHWARZSCHILD_REDUCED;
 
+=======
+        std::string computePath;
+    };
+
+    std::unordered_map<MetricType, MetricShaderPaths> m_paths;
+    std::string m_basePath;
+    std::unordered_map<MetricType, std::unique_ptr<Shader>> m_cache;
+    MetricType m_activeMetric = MetricType::SCHWARZSCHILD_REDUCED;
+
+
+>>>>>>> Stashed changes
     std::string resolveIncludes(const std::string& filePath, std::set<std::string>& visited);
     std::string readFile(const std::string& filePath);
     Shader* compileOrRetrieve(MetricType type);

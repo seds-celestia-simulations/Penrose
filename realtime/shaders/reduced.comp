@@ -1,4 +1,28 @@
+#version 430 core
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+layout(rgba32f, binding = 0) uniform image2D imgOutput;
+layout(binding = 1) uniform sampler2D uGeodesicLUT; // Matches GL_TEXTURE1 in GeodesicPass
+
+uniform sampler2D skybox;
+uniform mat4 uInvProjView;
+uniform vec3 uCameraPos;
+uniform float uTime;
+uniform vec2 uResolution; // Added to map thread ID to UV
+
+uniform float uLutRMin; 
+uniform float uLutRMax;
+
+
+// --- main ---
 void main() {
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    if (texelCoord.x >= int(uResolution.x) || texelCoord.y >= int(uResolution.y)) {
+        return;
+    }
+
+    vec2 TexCoords = (vec2(texelCoord) + 0.5) / uResolution;
+
     vec4 ndcPos = vec4(TexCoords.x * 2.0 - 1.0, TexCoords.y * 2.0 - 1.0, 1.0, 1.0);
     vec4 worldPos = uInvProjView * ndcPos;
     vec3 rd = normalize((worldPos.xyz / worldPos.w) - uCameraPos);
@@ -9,7 +33,7 @@ void main() {
     float planeLen = length(planeNormal);
 
     if (planeLen < 1e-6) {
-        FragColor = vec4(texture(skybox, DirectionToUV(rd)).rgb, 1.0);
+        imageStore(imgOutput, texelCoord, vec4(texture(skybox, DirectionToUV(rd)).rgb, 1.0));
         return;
     }
 
@@ -35,6 +59,16 @@ void main() {
     bool captured = false;
     bool escaped = false;
 
+    // 1. Calculate the emission angle for the LUT lookup
+    float gamma = acos(clamp(dot(rd, eR), -1.0, 1.0));
+    float lutU = (r0 - uLutRMin) / (uLutRMax - uLutRMin);
+    float lutV = (gamma - 0.001) / (3.14159265 - 0.002);
+
+    // 2. Sample the Predictive LUT
+    vec2 bakedData = texture(uGeodesicLUT, vec2(lutU, lutV)).rg;
+    float deltaPhi = bakedData.r;
+    float minRadius = bakedData.g;
+
     for (int i = 0; i < 150; ++i) {
         orbitRK4(u, v, dPsi);
         psi += dPsi;
@@ -43,7 +77,22 @@ void main() {
 
         float r = 1.0 / u;
         vec3 currentPos = orbitPosition(r, psi, eR, eT);
+        float zDist = abs(currentPos.z);
 
+        if (r > DISK_OUTER + 5.0) {
+            dPsi = 0.15 * stepSign; // Deep space: 5x speed
+        } 
+        else if (zDist > DISK_HEIGHT + 1.0) {
+            // Inside the LUT sphere, but flying high OVER the disk!
+            // We can safely step 3x faster without missing the gas.
+            dPsi = 0.09 * stepSign; 
+        } 
+        else {
+            // We are physically inside the bounding box of the plasma
+            dPsi = 0.03 * stepSign; // High precision for 3D noise accumulation
+        }
+
+        // Particle intersection
         for (int p = 0; p < particles.length(); ++p) {
             vec3 center = particles[p].stateX.xyz;
             float radius = particles[p].radius;
@@ -70,7 +119,8 @@ void main() {
             }
         }
 
-        if (accumulateDisk(previousPos, currentPos, uTime, accumColor, accumAlpha)) break;
+        // --- NEW: Volumetric Accretion Disk Integration ---
+        if (accumulateVolume(currentPos, previousPos, uTime, accumColor, accumAlpha)) break;
 
         if (r <= rs * 1.05) {
             captured = true;
@@ -98,5 +148,6 @@ void main() {
         finalColor += (1.0 - accumAlpha) * skyColor;
     }
 
-    FragColor = vec4(finalColor, 1.0);
+    // Write to compute image texture instead of FragColor
+    imageStore(imgOutput, texelCoord, vec4(finalColor, 1.0));
 }
