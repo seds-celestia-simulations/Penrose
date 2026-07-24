@@ -64,8 +64,8 @@ void main() {
     float stepSign = sign(tangentialSpeed);
     float dPsi = 0.03 * stepSign;
     float psi = 0.0;
-
-    vec3 previousPos = orbitPosition(r0, psi, eR, eT);
+    float psiDither = hash(vec3(float(texelCoord.x), float(texelCoord.y), 0.0)) * 0.03;
+    vec3 previousPos = orbitPosition(r0, psi + psiDither, eR, eT);
 
     vec3 accumColor = vec3(0.0);
     float accumAlpha = 0.0;
@@ -108,6 +108,10 @@ void main() {
 
         float jitter = (hash(vec3(float(texelCoord.x), float(texelCoord.y), float(i))) * 2.0 - 1.0) * dPsi * 0.17;
         dPsi += jitter;
+
+        if (r > DISK_INNER && r < DISK_OUTER) {
+            dPsi = clamp(dPsi, -0.04, 0.04);
+        }
 
         // Particle intersection
         for (int p = 0; p < particles.length(); ++p) {
