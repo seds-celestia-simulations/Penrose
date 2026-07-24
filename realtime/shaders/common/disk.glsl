@@ -27,10 +27,13 @@ bool accumulateVolume(vec3 currentPos, vec3 previousPos, float uTime,
     if (diskR > DISK_INNER && diskR < DISK_OUTER && zDist < localHeight * 2.5) {
 
         float phi = atan(currentPos.y, currentPos.x);
-        float omega = 3.0 / pow(diskR, 1.5);
-        float shearedPhi = phi + omega * uTime;
+        const float TWO_PI = 6.28318530718;
 
-        float spiralPhase = phi - log(diskR + 1.0) * 2.5 + uTime * 0.15;
+        float omega = 3.0 / pow(diskR, 1.5);
+        float rotation = mod(omega * uTime, TWO_PI);
+        float shearedPhi = phi + rotation;
+
+        float spiralPhase = phi - log(diskR + 1.0) * 2.5 + mod(uTime * 0.15, TWO_PI);
         float spiralWeight = 0.25 * max(1.0 - radial01, 0.0);
         float spiralOffset = spiralWeight * sin(spiralPhase);
 
