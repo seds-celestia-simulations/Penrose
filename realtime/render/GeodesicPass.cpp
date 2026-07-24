@@ -19,7 +19,7 @@ void GeodesicPass::execute(const PassContext& ctx) {
     shader->setVec2("uResolution", glm::vec2(ctx.renderWidth, ctx.renderHeight));
     shader->setVec3("uCameraPos", ctx.camera.Position);
     shader->setFloat("uLutRMin", 0.25f * 1.001f); 
-    shader->setFloat("uLutRMax", 50.0f); // Or whatever your BakerConfig defaults to
+    shader->setFloat("uLutRMax", 50.0f);
     
     shader->setInt("uGeodesicLUT", 1);
 
@@ -42,8 +42,7 @@ void GeodesicPass::execute(const PassContext& ctx) {
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, ctx.geodesicLUT);
 
-  //  m_renderer.bindParticleBuffer(0);
-    // ^ comment if you want performance/no particles
+    m_renderer.bindParticleBuffer(2);
     shader->setInt("uParticleCount", int(m_renderer.getParticleCount()));
 
     // 3. DISPATCH COMPUTE
@@ -55,9 +54,4 @@ void GeodesicPass::execute(const PassContext& ctx) {
     
     // Ensure the GPU finishes writing before we try to read it
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
-    // 4. BLIT TO SCREEN
-    // glViewport(0, 0, ctx.width, ctx.height);
-    // ctx.screenShader->use();
-    // m_renderer.blitToScreen();
 }

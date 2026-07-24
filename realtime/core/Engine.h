@@ -34,10 +34,6 @@ private:
     unsigned int height;
     float rs;
 
-    bool escapeWasDown;
-    bool periodWasDown;
-    bool mouseCaptured;
-
     std::unique_ptr<Renderer> renderer;
     std::unique_ptr<ShaderManager> shaderManager;
     std::unique_ptr<FrameCapture> frameCapture;

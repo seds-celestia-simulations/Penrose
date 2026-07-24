@@ -31,35 +31,29 @@ public:
             vertexCode = vShaderStream.str();
             fragmentCode = fShaderStream.str();
         }
-        catch (std::ifstream::failure& e) {
-             std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ" << std::endl;
-             std::cerr << "Attempted path: " << vertexPath << " or " << fragmentPath << std::endl;
+        catch (const std::ifstream::failure& e) {
+            std::cerr << "Shader: failed to read shader files from disk: " << vertexPath << " / " << fragmentPath << " (" << e.what() << ")\n";
         }
 
-        const char* vShaderCode = vertexCode.c_str();
-        const char * fShaderCode = fragmentCode.c_str();
-        compile(vShaderCode, fShaderCode);
+        compile(vertexCode.c_str(), fragmentCode.c_str());
+    }
+
+    Shader(const char* vertexPath, const std::string& fragmentSource) {
+        std::string vertexCode;
+        std::ifstream vShaderFile(vertexPath);
+        if (vShaderFile.is_open()) {
+            std::stringstream vShaderStream;
+            vShaderStream << vShaderFile.rdbuf();
+            vertexCode = vShaderStream.str();
+        } else {
+            std::cerr << "Shader: failed to open vertex shader: " << vertexPath << "\n";
+        }
+
+        compile(vertexCode.c_str(), fragmentSource.c_str());
     }
 
     // Comp shader
-    Shader(const char* computePath) {
-        std::string computeCode;
-        std::ifstream cShaderFile;
-        
-        cShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-        try {
-            cShaderFile.open(computePath);
-            std::stringstream cShaderStream;
-            cShaderStream << cShaderFile.rdbuf();
-            cShaderFile.close();
-            computeCode = cShaderStream.str();
-        }
-        catch (std::ifstream::failure& e) {
-            // std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ" << std::endl;
-        }
-    }
-
-       Shader(const std::string& computeSource, bool isRawSource) {
+    Shader(const std::string& computeSource) {
         const char* cShaderCode = computeSource.c_str();
         unsigned int compute;
 
@@ -75,7 +69,25 @@ public:
 
         glDeleteShader(compute);
     }
-    
+
+    Shader(const char* computePath) {
+        std::string computeCode;
+        std::ifstream cShaderFile;
+        
+        cShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+        try {
+            cShaderFile.open(computePath);
+            std::stringstream cShaderStream;
+            cShaderStream << cShaderFile.rdbuf();
+            cShaderFile.close();
+            computeCode = cShaderStream.str();
+        }
+        catch (const std::ifstream::failure& e) {
+            std::cerr << "Shader: failed to read compute shader from disk: " << computePath << " (" << e.what() << ")\n";
+        }
+
+        *this = Shader(computeCode);
+    }
 
     void use() { glUseProgram(ID); }
 
@@ -96,7 +108,7 @@ public:
     }
 
 private:
-        void compile(const char* vertexCode, const char* fragmentCode) {
+    void compile(const char* vertexCode, const char* fragmentCode) {
         unsigned int vertex, fragment;
 
         vertex = glCreateShader(GL_VERTEX_SHADER);
@@ -107,7 +119,7 @@ private:
         fragment = glCreateShader(GL_FRAGMENT_SHADER);
         glShaderSource(fragment, 1, &fragmentCode, NULL);
         glCompileShader(fragment);
-        checkCompileErrors(fragment, "FRAGMENT");
+        checkCompileErrors(fragment, "FRAGMENT", fragmentCode);
 
         ID = glCreateProgram();
         glAttachShader(ID, vertex);
@@ -118,19 +130,23 @@ private:
         glDeleteShader(vertex);
         glDeleteShader(fragment);
     }
-    void checkCompileErrors(unsigned int shader, std::string type) {
+
+    void checkCompileErrors(unsigned int shader, std::string type, const char* fragmentSource = nullptr) {
         int success;
-        char infoLog[1024];
+        char infoLog[4096];
         if (type != "PROGRAM") {
             glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
             if (!success) {
-                glGetShaderInfoLog(shader, 1024, NULL, infoLog);
+                glGetShaderInfoLog(shader, 4096, NULL, infoLog);
                 std::cerr << "ERROR::SHADER_COMPILATION_ERROR of type: " << type << "\n" << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
+                if (fragmentSource) {
+                    std::cerr << "Fragment source (first 1000 chars):\n" << std::string(fragmentSource, 1000) << "\n -- --------------------------------------------------- -- " << std::endl;
+                }
             }
         } else {
             glGetProgramiv(shader, GL_LINK_STATUS, &success);
             if (!success) {
-                glGetProgramInfoLog(shader, 1024, NULL, infoLog);
+                glGetProgramInfoLog(shader, 4096, NULL, infoLog);
                 std::cerr << "ERROR::PROGRAM_LINKING_ERROR of type: " << type << "\n" << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
             }
         }

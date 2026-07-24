@@ -22,7 +22,6 @@
 #include "scene/ParticleBuffer.h"
 #include "core/Engine.h"
 
-
 Camera camera(glm::vec3(0.5f, 0.0f, 2.0f));
 float deltaTime = 0.0f; 
 float lastFrame = 0.0f; 
@@ -30,8 +29,7 @@ bool firstMouse = true;
 float renderScale = 1.0f;
 
 Engine::Engine(unsigned int width, unsigned int height, const std::string& title)
-    : width(width), height(height), rs(0.25f), 
-      escapeWasDown(false), periodWasDown(false), mouseCaptured(true) 
+    : width(width), height(height), rs(0.25f)
 {
     initWindow(title);
     initAssets();
@@ -103,21 +101,17 @@ void Engine::initAssets() {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, config.lutSize, config.lutSize, 0, GL_RGB, GL_FLOAT, lutData.data());
     lutData.clear();
 
-    skyboxTexture = loadTexture("realtime/resources/starfield_original.jpg");
+    skyboxTexture = loadTexture("resources/starfield_original.jpg");
 
 // 1. Initialize Renderer WITH DIMENSIONS for the compute texture
     renderer = std::make_unique<Renderer>(rw, rh);
     
     // 2. Load the universal screen blit shader
-    screenShader = std::make_unique<Shader>("realtime/shaders/common/screen.vert", "realtime/shaders/common/screen.frag");
+    screenShader = std::make_unique<Shader>("shaders/common/screen.vert", "shaders/common/screen.frag");
 
     shaderManager = std::make_unique<ShaderManager>();
-    shaderManager->loadMetricCompute(
-        MetricType::SCHWARZSCHILD_REDUCED, 
-        "realtime/shaders/common/reduced_header.glsl", // 1. Header Path
-        "realtime/shaders/metrics/schwarzschild_reduced.glsl",                                            // 2. Metric Path (Empty if included in header)
-        "realtime/shaders/reduced.comp"                // 3. Main Compute Path
-    );
+    shaderManager->setBasePath("shaders");
+    shaderManager->loadMetricCompute(MetricType::SCHWARZSCHILD_REDUCED, "reduced.comp");
     shaderManager->setMetric(MetricType::SCHWARZSCHILD_REDUCED);
 
     Shader* activeShader = shaderManager->getActive();
@@ -128,7 +122,7 @@ void Engine::initAssets() {
     }
 
     frameCapture = std::make_unique<FrameCapture>();
-    accretionDisk = std::make_unique<Physics::AccretionDisk>(10);
+    accretionDisk = std::make_unique<Physics::AccretionDisk>(50);
     fallingSystem = std::make_unique<FallingParticleSystem>();
     fallingSystem->setRs(rs);
 
@@ -205,9 +199,6 @@ void Engine::run() {
             std::cout << "Dynamic test sphere dropped into spherical coordinates pipeline!\n";
         }
         periodWasDown = periodDown;
-
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
 
         update();
         render();
