@@ -106,6 +106,9 @@ void main() {
             dPsi = 0.03 * stepSign; // High precision for 3D noise accumulation
         }
 
+        float jitter = (hash(vec3(float(texelCoord.x), float(texelCoord.y), float(i))) * 2.0 - 1.0) * dPsi * 0.17;
+        dPsi += jitter;
+
         // Particle intersection
         for (int p = 0; p < particles.length(); ++p) {
             vec3 center = particles[p].stateX.xyz;
