@@ -1,8 +1,9 @@
 #include "../common/noise.glsl"
 #include "../common/skybox.glsl"
-#include "../common/disk.glsl"
 
 const float rs = 0.25;
+
+#include "../common/disk.glsl"
 
 void orbitDerivative(float u, float v, out float du, out float dv) {
     du = v;

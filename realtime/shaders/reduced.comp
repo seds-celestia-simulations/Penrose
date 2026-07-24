@@ -96,7 +96,7 @@ void main() {
         if (r > DISK_OUTER + 5.0) {
             dPsi = 0.15 * stepSign; // Deep space: 5x speed
         } 
-        else if (zDist > DISK_HEIGHT + 1.0) {
+        else if (zDist > DISK_HEIGHT_OUTER + 1.0) {
             // Inside the LUT sphere, but flying high OVER the disk!
             // We can safely step 3x faster without missing the gas.
             dPsi = 0.09 * stepSign; 
