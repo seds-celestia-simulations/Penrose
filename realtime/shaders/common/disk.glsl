@@ -24,24 +24,26 @@ bool accumulateVolume(vec3 currentPos, vec3 previousPos, float uTime,
     float radial01 = (diskR - DISK_INNER) / (DISK_OUTER - DISK_INNER);
     float localHeight = mix(DISK_HEIGHT_INNER, DISK_HEIGHT_OUTER, pow(radial01, 0.8));
 
-    if (diskR > DISK_INNER && diskR < DISK_OUTER && zDist < localHeight) {
+    if (diskR > DISK_INNER && diskR < DISK_OUTER && zDist < localHeight * 2.5) {
 
         float phi = atan(currentPos.y, currentPos.x);
         float omega = 3.0 / pow(diskR, 1.5);
         float shearedPhi = phi + omega * uTime;
 
-        vec3 noiseCoord = vec3(diskR * cos(shearedPhi), diskR * sin(shearedPhi), currentPos.z * 0.5);
+        float spiralPhase = phi - log(diskR + 1.0) * 2.5 + uTime * 0.15;
+        float spiralWeight = 0.25 * max(1.0 - radial01, 0.0);
+        float spiralOffset = spiralWeight * sin(spiralPhase);
+
+        vec3 noiseCoord = vec3(diskR * cos(shearedPhi + spiralOffset),
+                                diskR * sin(shearedPhi + spiralOffset),
+                                currentPos.z * 0.5);
         float noiseVal = fBm(noiseCoord * 4.0);
         noiseVal += 0.5 * fBm(noiseCoord * 4.0 + vec3(10.5, 20.3, 5.7));
         noiseVal += 0.25 * fBm(noiseCoord * 16.0 + vec3(42.1, 13.9, 31.2));
         noiseVal /= 1.75;
 
-        float spiral = 0.5 + 0.5 * sin(phi * 2.0 - diskR * 3.0 + uTime * 0.3);
-        noiseVal = noiseVal * 0.6 + spiral * 0.4;
-
         float edgeFade = smoothstep(0.0, 0.15, radial01) * (1.0 - smoothstep(0.6, 1.0, radial01));
-        float normalizedZ = min(zDist / max(localHeight, 1e-6), 1.0);
-        float verticalFade = 1.0 - smoothstep(0.3, 1.0, normalizedZ);
+        float verticalFade = exp(-2.0 * zDist * zDist / (localHeight * localHeight));
 
         float density = smoothstep(0.2, 0.8, noiseVal) * edgeFade * verticalFade;
 
@@ -58,10 +60,9 @@ bool accumulateVolume(vec3 currentPos, vec3 previousPos, float uTime,
             dopplerFactor = clamp(dopplerFactor, 0.3, 3.0);
 
             float stepSize = length(currentPos - previousPos);
-            float heat = max(1.0 - radial01, 0.0);
-            float alpha = clamp(density * stepSize * (1.0 + 2.0 * heat), 0.0, 1.0);
+            float tempNormalized = pow(DISK_INNER / max(diskR, 1e-6), 0.75);
+            float alpha = clamp(density * stepSize * (1.0 + 2.0 * tempNormalized), 0.0, 1.0);
 
-            float tempNormalized = heat;
             vec3 color = blackbodyColor(tempNormalized);
 
             float gravRedshift = sqrt(max(1.0 - rs / diskR, 0.01));
